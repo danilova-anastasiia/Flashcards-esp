@@ -64,3 +64,34 @@ void shuffleCardsRandom(const char *deck_path, int count){
 
     free(newJson); 
 }
+
+void createDeck(const char *deck_path, const char *deck_title) {
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+        return;
+    }
+    cJSON_AddStringToObject(root, "title", deck_title);
+    cJSON_AddArrayToObject(root, "cards");
+
+    char *newJson = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (newJson == NULL) {
+        return;
+    }
+
+    FILE *file = fopen(deck_path, "w");
+    if (file == NULL) {
+        free(newJson);
+        return;
+    }
+    else {
+        fputs(newJson, file);
+        fclose(file);
+    }
+    free(newJson);
+}
+
+void deleteDeckFile(const char *deck_path) {
+    remove(deck_path);
+}
+
