@@ -9,7 +9,7 @@
 #include "hal/spi_types.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
-#include "esp_err.h
+#include "esp_err.h"
 
 #include "display/display_config.h"
 #include "display/display.h"
@@ -20,7 +20,7 @@ esp_lcd_panel_handle_t lcd_panel_handle = NULL;
 
 static void displayInit(){
     gpio_set_direction(PIN_BL,GPIO_MODE_DEF_OUTPUT);
-    gpio_set_level(PIN_BL,0);
+    gpio_set_level(PIN_BL,1);
 
     spi_bus_config_t buscfg = {
     .sclk_io_num = PIN_SCLK,
@@ -43,20 +43,19 @@ static void displayInit(){
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, &lcd_io_handle));
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = PIN_RST,
-        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
         .bits_per_pixel = 16,
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(lcd_io_handle, &panel_config, &lcd_panel_handle));
 
     esp_lcd_panel_reset(lcd_panel_handle);
     esp_lcd_panel_init(lcd_panel_handle);
+    esp_lcd_panel_set_gap(lcd_panel_handle, 0, 0);
     esp_lcd_panel_disp_on_off(lcd_panel_handle, true);
 }
 
 
 void testDisplay(){
     displayInit();
-    fill_screen_color(lcd_panel_handle, 0xF800, 240, 320);
-    esp_lcd_panel_draw_bitmap(lcd_panel_handle,50,50, TEST_IMG_W, TEST_IMG_H, test_bitmap);
-
+    esp_lcd_panel_draw_bitmap(lcd_panel_handle,0,0, TEST_IMG_W, TEST_IMG_H, test_bitmap);
 }

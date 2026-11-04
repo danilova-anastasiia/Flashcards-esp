@@ -9,7 +9,7 @@
 #define LCD_H_RES  240
 #define LCD_V_RES  320
 
-#define LCD_HOST   VSPI_HOST
+#define LCD_HOST   SPI3_HOST
 
 #define PIXEL_CLOCK_HZ 20*1000*1000
 #define LCD_CMD_BITS    8
