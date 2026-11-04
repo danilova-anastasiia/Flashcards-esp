@@ -2,6 +2,42 @@
 #include "cJSON.h"
 #include <stdlib.h>
 
+int getCardCount(const char *deck_path) {
+    FILE *file = fopen(deck_path, "r");
+    if (file == NULL) {
+        return 0;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long sizeOfFile = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    char *buffer = malloc(sizeOfFile + 1);
+        if (buffer == NULL) {
+            fclose(file);
+            return 0;
+        }
+
+    size_t sizeInBytesRead = fread(buffer, 1, sizeOfFile, file);
+    buffer[sizeInBytesRead] = '\0';
+    fclose(file);
+
+    cJSON *root = cJSON_Parse(buffer);
+    free(buffer);
+    if (root == NULL) {
+        return 0;
+    }
+
+    int cardCount = 0;
+    if (cJSON_IsArray(root)) {
+        cardCount = cJSON_GetArraySize(root);
+    }
+    cJSON_Delete(root);
+
+    return cardCount;
+
+}
+
 void shuffleCardsRandom(const char *deck_path, int count){
     FILE *file = fopen(deck_path, "r");
     if (file == NULL) {
