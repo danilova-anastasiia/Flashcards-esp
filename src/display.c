@@ -10,15 +10,19 @@
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 #include "esp_err.h"
+#include "esp_lvgl_port.h"
+
 
 #include "display/display_config.h"
 #include "display/display.h"
 #include "display/test_bitmap.h"
 
+#include "ui/src/ui/ui.h"
+
 esp_lcd_panel_io_handle_t lcd_io_handle = NULL;
 esp_lcd_panel_handle_t lcd_panel_handle = NULL;
 
-static void displayInit(){
+void displayInit(){
     gpio_set_direction(PIN_BL,GPIO_MODE_DEF_OUTPUT);
     gpio_set_level(PIN_BL,1);
 
@@ -58,4 +62,26 @@ static void displayInit(){
 void testDisplay(){
     displayInit();
     esp_lcd_panel_draw_bitmap(lcd_panel_handle,0,0, TEST_IMG_W, TEST_IMG_H, test_bitmap);
+}
+
+void lvglInit(){
+    const lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+    ESP_ERROR_CHECK(lvgl_port_init(&lvgl_cfg));
+
+    const lvgl_port_display_cfg_t disp_cfg = {
+        .io_handle = lcd_io_handle,
+        .panel_handle = lcd_panel_handle,
+        .buffer_size = LCD_H_RES * 40,
+        .double_buffer = true,
+        .hres = LCD_H_RES,
+        .vres = LCD_V_RES,
+        .monochrome = false,
+        .rotation = { .swap_xy = false, .mirror_x = false, .mirror_y = false },
+        .flags = { .buff_dma = true, .swap_bytes = true },
+    };
+    lv_display_t *disp = lvgl_port_add_disp(&disp_cfg);
+    lvgl_port_lock(0);
+    ui_init();
+    lv_screen_load(objects.main);
+    lvgl_port_unlock();
 }

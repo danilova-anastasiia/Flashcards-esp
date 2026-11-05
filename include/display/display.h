@@ -1,8 +1,10 @@
 #ifndef DISPLAY_H
 #define DISPLAY_H
 
-static void displayInit();
+void displayInit();
 
 void testDisplay();
+
+void lvglInit();
 
 #endif
