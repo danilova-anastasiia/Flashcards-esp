@@ -1,5 +1,6 @@
 {
   "navigation": {
+    "selectedUserPageObject": "[test_ui.eez-project]:/userPages/0",
     "subnavigationSelectedItems": {}
   },
   "layoutModel": {
@@ -190,18 +191,6 @@
               "children": [
                 {
                   "type": "tab",
-                  "id": "#f7743bbc-c63a-4d0f-81d7-097adcfa8130",
-                  "name": "Settings",
-                  "component": "editor",
-                  "config": {
-                    "objectPath": "[test_ui.eez-project]:/settings",
-                    "subObjectPath": "[test_ui.eez-project]:/settings",
-                    "permanent": false
-                  },
-                  "icon": "material:settings"
-                },
-                {
-                  "type": "tab",
                   "id": "#a17d78d7-874e-4a86-a6ec-2d09b6268070",
                   "name": "Main",
                   "component": "editor",
@@ -211,7 +200,8 @@
                   },
                   "icon": "svg:page"
                 }
-              ]
+              ],
+              "active": true
             },
             {
               "type": "row",
@@ -231,8 +221,7 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ],
-                  "active": true
+                  ]
                 },
                 {
                   "type": "tabset",
@@ -1085,6 +1074,7 @@
   "searchMatchWholeWord": false,
   "replaceEnabled": false,
   "replaceText": "",
+  "pageRuntimeFrontFace": true,
   "breakpoints": {},
   "watchExpressions": [],
   "showComponentDescriptions": true,

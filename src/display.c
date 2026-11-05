@@ -79,7 +79,8 @@ void lvglInit(){
         .rotation = { .swap_xy = false, .mirror_x = false, .mirror_y = false },
         .flags = { .buff_dma = true, .swap_bytes = true },
     };
-    lv_display_t *disp = lvgl_port_add_disp(&disp_cfg);
+    lvgl_port_add_disp(&disp_cfg);
+    
     lvgl_port_lock(0);
     ui_init();
     lv_screen_load(objects.main);
