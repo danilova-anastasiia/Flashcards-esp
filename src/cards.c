@@ -2,6 +2,56 @@
 #include "cJSON.h"
 #include <stdlib.h>
 
+void deleteCardByIndex(const char *deck_path, int index) {
+    FILE *file = fopen(deck_path, "r");
+    if (file == NULL) {
+        return;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long sizeOfFile = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    char *buffer = malloc(sizeOfFile + 1);
+        if (buffer == NULL) {
+            fclose(file);
+            return;
+        }
+
+    size_t sizeInBytesRead = fread(buffer, 1, sizeOfFile, file);
+    buffer[sizeInBytesRead] = '\0';
+    fclose(file);
+
+    cJSON *root = cJSON_Parse(buffer);
+    free(buffer);
+    if (root == NULL) {
+        return;
+    }
+
+    if (cJSON_IsArray(root)) {
+        cJSON_DeleteItemFromArray(root, index);
+    }
+
+    char *newJson = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (newJson == NULL) {
+        return;
+    }
+
+    file = fopen(deck_path, "w");
+    if (file == NULL) {
+        free(newJson);
+        return;
+    }
+    else {
+        fputs(newJson, file);
+        fclose(file);
+    }
+
+
+    free(newJson); 
+}
+
 int getCardCount(const char *deck_path) {
     FILE *file = fopen(deck_path, "r");
     if (file == NULL) {
