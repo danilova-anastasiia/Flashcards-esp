@@ -1,6 +1,52 @@
 #include <stdio.h>
 #include "cJSON.h"
 #include <stdlib.h>
+#include <string.h>
+#include <dirent.h>
+
+static cJSON *deck_root = NULL; 
+static cJSON *deck_cards = NULL;
+static int *order = NULL;
+static int deck_count = 0;
+
+static cJSON *loadJson(const char *deck_path) {
+    FILE *file = fopen(deck_path, "rb");
+    if (file == NULL) {
+        return NULL;
+    }
+
+    fseek(file, 0, SEEK_END);
+    if (fseek(file, 0, SEEK_END) != 0) {
+        fclose(file);
+        return NULL;
+    }
+    long sizeOfFile = ftell(file);
+    if (sizeOfFile <= 0) {
+        fclose(file);
+        return NULL;
+    }
+    fseek(file, 0, SEEK_SET);
+
+    char *buffer = malloc(sizeOfFile + 1);
+        if (buffer == NULL) {
+            fclose(file);
+            return NULL;
+        }
+
+    size_t sizeInBytesRead = fread(buffer, 1, sizeOfFile, file);
+    buffer[sizeInBytesRead] = '\0';
+    fclose(file);
+
+    cJSON *root = cJSON_Parse(buffer);
+    free(buffer);
+    if (root == NULL) {
+        return NULL;
+    }
+
+    return root;
+
+}
+
 
 void deleteCardByIndex(const char *deck_path, int index) {
     FILE *file = fopen(deck_path, "r");
