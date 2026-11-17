@@ -48,46 +48,41 @@ static cJSON *loadJson(const char *deck_path) {
 }
 
 
-void deleteCardByIndex(const char *deck_path, int index) {
-    FILE *file = fopen(deck_path, "r");
-    if (file == NULL) {
-        return;
-    }
 
-    fseek(file, 0, SEEK_END);
-    long sizeOfFile = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    char *buffer = malloc(sizeOfFile + 1);
-        if (buffer == NULL) {
-            fclose(file);
-            return;
-        }
-
-    size_t sizeInBytesRead = fread(buffer, 1, sizeOfFile, file);
-    buffer[sizeInBytesRead] = '\0';
-    fclose(file);
-
-    cJSON *root = cJSON_Parse(buffer);
-    free(buffer);
+int deleteCardByIndex(const char *deck_path, int index) {
+    
+    cJSON *root = loadJson(deck_path);
     if (root == NULL) {
-        return;
+        return 0;
+    } 
+
+    cJSON *arrayCards = cJSON_GetObjectItemCaseSensitive(root, "cards");
+    int size = cJSON_GetArraySize(arrayCards);
+    if (index < 0 || index >= size) {
+        cJSON_Delete(root);
+        return 0;
     }
 
-    if (cJSON_IsArray(root)) {
-        cJSON_DeleteItemFromArray(root, index);
+
+    if (cJSON_IsArray(arrayCards)) {
+        cJSON_DeleteItemFromArray(arrayCards, index);
     }
+    else {
+        cJSON_Delete(root);
+        return 0;
+    }
+
 
     char *newJson = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     if (newJson == NULL) {
-        return;
+        return 0;
     }
 
-    file = fopen(deck_path, "w");
+    FILE *file = fopen(deck_path, "wb");
     if (file == NULL) {
         free(newJson);
-        return;
+        return 0;
     }
     else {
         fputs(newJson, file);
@@ -96,7 +91,9 @@ void deleteCardByIndex(const char *deck_path, int index) {
 
 
     free(newJson); 
+    return 1;
 }
+
 
 int getCardCount(const char *deck_path) {
     FILE *file = fopen(deck_path, "r");
