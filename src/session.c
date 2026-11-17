@@ -37,3 +37,28 @@ void studyStop(void) {
 
     return;
 }
+
+int studyStart(const char *deck_path) {
+    studyStop();
+
+    total = deckOpen(deck_path);
+    if (total <= 0) {
+        render();
+        return 0;
+    }
+
+    status = calloc(total, sizeof(uint8_t));
+    if (status == NULL) {
+        deckClose();
+        return 0;
+    }
+
+    deckShuffle();
+    currentIndex = 0;
+    showDef = false; 
+    knownCount = 0;
+    unknownCount = 0;
+    render();
+    return 1;
+
+}
