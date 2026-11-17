@@ -18,3 +18,22 @@ static bool busy;
 static uint8_t *status;
 static int knownCount;
 static int unknownCount;
+
+//render()
+
+void studyStop(void) {
+    if (status != NULL) {
+        free(status);
+        status = NULL;
+    }
+
+    deckClose();
+    currentIndex = 0;
+    total = 0;
+    busy = false;
+    knownCount = 0;
+    unknownCount = 0;
+    showDef = false;
+
+    return;
+}
