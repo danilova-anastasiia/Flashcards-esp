@@ -62,3 +62,50 @@ int studyStart(const char *deck_path) {
     return 1;
 
 }
+
+void flip(void) {
+    if (total <= 0 || busy || studyIsFinished()) {
+        return;
+    }
+    else {
+        showDef = !showDef;
+        render();
+        return;
+    }
+}
+
+bool studyIsFinished(void) {
+    if (total > 0 && currentIndex >= total) {
+        return true;
+    }
+    else return false;
+}
+
+int studyKnown(void) {
+    return knownCount;
+}
+
+int studyTotal(void) {
+    return total;
+}
+
+void studyAnswer(bool known) {
+    if (total <= 0 || busy || studyIsFinished()) {
+        return;
+    }
+
+    if (known == true) {
+        status[currentIndex] = CARD_KNOWN;
+        knownCount++;
+    }
+
+    if (known != true) {
+        status[currentIndex] = CARD_UNKNOWN;
+        unknownCount++;
+    }
+
+    currentIndex++;
+    showDef = false;
+    render();
+
+}
