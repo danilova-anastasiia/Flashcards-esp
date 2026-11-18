@@ -2,6 +2,7 @@
 build/
 managed_components/
 sdkconfig
+include/web/credentials.h
 sdkconfig.*
 !sdkconfig.defaults
 sdkconfig.old
