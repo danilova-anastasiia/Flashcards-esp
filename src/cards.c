@@ -48,6 +48,61 @@ static cJSON *loadJson(const char *deck_path) {
 }
 
 
+void deckClose() {
+
+    if (deck_root != NULL) {
+        cJSON_Delete(deck_root);
+        deck_root = NULL;
+    }
+    deck_cards = NULL;
+
+    if (order != NULL) {
+        free(order);
+        order = NULL;
+    }
+
+    deck_count = 0;
+    return;
+}
+
+
+int deckOpen(const char *deck_path) {
+    deckClose();
+
+    deck_root = loadJson(deck_path);
+    if (deck_root == NULL) return 0;
+
+    deck_cards = cJSON_GetObjectItemCaseSensitive(deck_root, "cards");
+    if (cJSON_IsArray(deck_cards)) {
+        deck_count = cJSON_GetArraySize(deck_cards);
+    }
+    else {
+        deckClose();
+        return 0;
+    }
+
+    if (deck_count <= 0) {
+        deckClose();
+        return deck_count;
+    }
+
+    order = malloc((sizeof(int)*deck_count));
+    if (order == NULL) {
+        deckClose();
+        return 0;
+    }
+
+    for (int i = 0; i < deck_count; i++) {
+        *(order + i) = i;
+    }
+
+    return deck_count;
+}
+
+int deckSize() {
+    return deck_count;
+}
+
 
 int deleteCardByIndex(const char *deck_path, int index) {
     
