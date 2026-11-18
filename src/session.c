@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "session.h"
+#include "pinout.h"
+#include "lvgl.h"
+#include "screens.h"
+#include "driver/gpio.h"
 
 enum {
     CARD_UNSEEN  = 0,
@@ -18,8 +22,43 @@ static bool busy;
 static uint8_t *status;
 static int knownCount;
 static int unknownCount;
+//for buttons
+static bool previousLeft = false;
+static bool previousMid = false;
+static bool previousRight = false;
 
-//render()
+
+
+//render not public
+static void render(void) {
+
+    if (total <= 0) {
+        lv_label_set_text(objects.card_label, "Дека порожня");
+        lv_label_set_text(objects.progress, "0 / 0");
+        lv_obj_add_flag(objects.result_label, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
+    if (studyIsFinished()) {
+        char buffer[67];
+        snprintf(buffer, sizeof(buffer), "Знаю: %d / %d", knownCount, total);
+        lv_label_set_text(objects.result_label, buffer);
+        lv_obj_clear_flag(objects.result_label, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(objects.card_label, "Деку пройдено!");
+        return;
+    }
+
+    lv_obj_add_flag(objects.result_label, LV_OBJ_FLAG_HIDDEN);
+
+    const char *text = showDef ? deckDefinition(currentIndex) : deckTerm(currentIndex);
+    lv_label_set_text(objects.card_label, text);
+
+    char prog_buffer[67];
+    snprintf(prog_buffer, sizeof(prog_buffer), "%d / %d", currentIndex + 1, total);
+    lv_label_set_text(objects.progress, prog_buffer);
+
+}
+
 
 void studyStop(void) {
     if (status != NULL) {
@@ -62,6 +101,7 @@ int studyStart(const char *deck_path) {
     return 1;
 
 }
+
 
 void flip(void) {
     if (total <= 0 || busy || studyIsFinished()) {
@@ -109,3 +149,30 @@ void studyAnswer(bool known) {
     render();
 
 }
+
+void studyButtonsPoll(void) {
+    bool currLeft = (gpio_get_level(BTN_LEFT_PIN) == 0);
+    bool currMid = (gpio_get_level(BTN_MID_PIN) == 0);
+    bool currRight = (gpio_get_level(BTN_RIGHT_PIN) == 0);
+    bool leftPressed = (currLeft && !previousLeft);
+    bool rightPressed = (currRight && !previousRight);
+    bool midPressed = (currMid && !previousMid);
+
+    previousLeft = currLeft;
+    previousMid = currMid;
+    previousRight = currRight;
+
+    if (total <= 0 || busy || studyIsFinished()) return;
+
+    if (midPressed == true) {
+        flip();
+    }
+    else if (rightPressed) {
+        studyAnswer(true);
+    }
+    else if (leftPressed) {
+        studyAnswer(false);
+    }
+
+}
+
