@@ -49,7 +49,6 @@ static cJSON *loadJson(const char *deck_path) {
 
 
 void deckClose() {
-
     if (deck_root != NULL) {
         cJSON_Delete(deck_root);
         deck_root = NULL;
@@ -101,6 +100,21 @@ int deckOpen(const char *deck_path) {
 
 int deckSize() {
     return deck_count;
+}
+
+
+void deckShuffle() {
+    int count = deckSize();
+    if (order == NULL || count < 2) return;
+
+    for (int i = count - 1; i > 0; i--) {
+        int randomIndex = rand() % (i+1);
+        if (randomIndex != i) {
+            int temp = *(order + i);
+            *(order + i) = *(order + randomIndex);
+            *(order + randomIndex) = temp;
+        }
+    }
 }
 
 
