@@ -1,5 +1,9 @@
+file(GLOB_RECURSE APP_SRCS "*.c" "../src/*.c")
+
 idf_component_register(
-    SRCS "main.c"
+    SRCS ${APP_SRCS}
     INCLUDE_DIRS "../include"
-    REQUIRES fatfs sdmmc driver esp_driver_spi
+    EMBED_TXTFILES "../include/web/index.html"
+    REQUIRES fatfs sdmmc driver esp_driver_spi esp_driver_gpio esp_lcd esp_timer
+             esp_event nvs_flash
 )

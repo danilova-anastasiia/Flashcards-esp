@@ -8,30 +8,44 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "esp_netif.h"
-#include "include/web/credentials.h"
-#include "include/web/web.h"
+#include "esp_check.h"
+#include "esp_http_server.h"
 
+#include "web/credentials.h"
+#include "web/web.h"
+
+extern const char index_html_start[] asm("_binary_index_html_start");
+extern const char index_html_end[]   asm("_binary_index_html_end");
+
+static httpd_handle_t server_handle = NULL;
 static void wifiEventHandler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data){
-    switch (event_id)
-    {
-    case WIFI_EVENT_STA_START:
-        printf("WiFi connecting ... \n");
-        break;
+    if (event_base == WIFI_EVENT){
+        switch (event_id){
+        case WIFI_EVENT_STA_START:
+            printf("WiFi connecting ... \n");
+            break;
 
-    case WIFI_EVENT_STA_CONNECTED:
-        printf("WiFi connected ... \n");
-        break;
+        case WIFI_EVENT_STA_CONNECTED:
+            printf("WiFi connected ... \n");
+            break;
 
-    case WIFI_EVENT_STA_DISCONNECTED:
-        printf("WiFi lost connection ... \n");
-        break;
+        case WIFI_EVENT_STA_DISCONNECTED:
+            printf("WiFi lost connection ... \n");
+            break;
 
-	case IP_EVENT_STA_GOT_IP:
-		printf("WiFi got IP ... \n\n");
-		break;
+        case IP_EVENT_STA_GOT_IP:
+            printf("WiFi got IP ... \n\n");
+            break;
 
-    default:
-        break;
+        default:
+            break;
+        }
+    }else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t *e = (ip_event_got_ip_t *)event_data;
+        printf("WiFi got IP: " IPSTR "\n", IP2STR(&e->ip_info.ip));
+        if (server_handle == NULL) {
+            serverInit();
+        }
     }
 }
 
@@ -48,52 +62,38 @@ void connectWifi(){
         .sta = {
             .ssid = SSID,
             .password = PASS}};
-    esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_configuration);
+
+    esp_wifi_set_mode(WIFI_MODE_STA);
+    
+    esp_wifi_set_config(WIFI_IF_STA, &wifi_configuration);
 
     esp_wifi_start();
 
 	esp_wifi_connect();
 }
 
-char *parseHTML(){
-    FILE *html = fopen("include/web/index.html", "r");
 
-    if(html==NULL){
-        return NULL;
-    }
-
-    fseek(html,0,SEEK_END);
-    int size=ftell(html);
-    fseek(html,0,SEEK_SET);
-
-    char *response_message = malloc((size+1)*sizeof(response_message));
-    char c;    
-    for(int i=0; c=fgetc(html)!=EOF; i++){
-        response_message[i]=c;
-    }
-    response_message[size+1]='\0';
-    fclose(html);
-
-    return response_message;
-
-}
 
 static esp_err_t getHandler(httpd_req_t *req){
-    
-    char *response_message = parseHTML();
-    httpd_resp_send(req, response_message, HTTPD_RESP_USE_STRLEN);
-    return ESP_OK;
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, index_html_start,index_html_end - index_html_start - 1);
 }
 
-void severInit(){
+void serverInit(){
     httpd_config_t server_config = HTTPD_DEFAULT_CONFIG();
-    httpd_handle_t server_handle = NULL;
-    httpd_start(&server_handle, &server_config);
+
+    if (httpd_start(&server_handle, &server_config) != ESP_OK) {
+        printf("HTTP server failed to start\n");
+        server_handle = NULL;
+        return;
+    }
 
     httpd_uri_t uri_get = {
         .uri = "/",
         .method = HTTP_GET,
         .handler = getHandler,
-        .user_ctx = NULL};
+        .user_ctx = NULL,
+    };
     httpd_register_uri_handler(server_handle, &uri_get);
+    printf("Server started\n");
 }
