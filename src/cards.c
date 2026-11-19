@@ -118,8 +118,32 @@ void deckShuffle() {
 }
 
 
+const char* deckTerm(int pos) {
+    if (deck_root == NULL || deck_cards == NULL || pos < 0 || pos >= deck_count) {
+        return "";
+    }
+
+    cJSON *cardIndex = cJSON_GetArrayItem(deck_cards, order[pos]);
+    cJSON *term = cJSON_GetObjectItemCaseSensitive(cardIndex, "term");
+
+    if (!cJSON_IsString(term)) return "";
+    return term -> valuestring;
+
+}
+
+const char* deckDefinition(int pos) {
+    if (deck_root == NULL || deck_cards == NULL || pos < 0 || pos >= deck_count) {
+        return "";
+    }
+
+    cJSON *cardIndex = cJSON_GetArrayItem(deck_cards, order[pos]);
+    cJSON *definition = cJSON_GetObjectItemCaseSensitive(cardIndex, "definition");
+
+    if (!cJSON_IsString(definition)) return "";
+    return definition -> valuestring;
+}
+
 int deleteCardByIndex(const char *deck_path, int index) {
-    
     cJSON *root = loadJson(deck_path);
     if (root == NULL) {
         return 0;
