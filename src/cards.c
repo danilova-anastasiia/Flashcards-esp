@@ -143,6 +143,51 @@ const char* deckDefinition(int pos) {
     return definition -> valuestring;
 }
 
+
+int addCard(const char* deck_path, const char *term, const char *definition) {
+    cJSON *root = loadJson(deck_path);
+    if (root == NULL) {
+        return 0;
+    }
+
+    cJSON *arrayCards = cJSON_GetObjectItemCaseSensitive(root, "cards");
+    if(!cJSON_IsArray(arrayCards)) {
+        cJSON_Delete(root);
+        return 0;
+    }
+    int size = cJSON_GetArraySize(arrayCards);
+
+    cJSON *newCard = cJSON_CreateObject();
+    cJSON_AddStringToObject(newCard, "term", term);
+    cJSON_AddStringToObject(newCard, "definition", definition);
+
+    if (cJSON_AddItemToArray(arrayCards, newCard) == 0) {
+        cJSON_Delete(newCard);
+        cJSON_Delete(root);
+        return 0;
+    }
+        
+    char *jsonString = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+
+    if(jsonString == NULL) {
+        return 0;
+    }
+    
+    FILE *file = fopen(deck_path, "wb");
+    if (file == NULL) {
+        free(jsonString);
+        return 0;
+    }
+
+    fputs(jsonString, file);
+    fclose(file);
+    free(jsonString);
+
+    return 1;
+}
+
+
 int deleteCardByIndex(const char *deck_path, int index) {
     cJSON *root = loadJson(deck_path);
     if (root == NULL) {
@@ -221,7 +266,6 @@ int getCardCount(const char *deck_path) {
     cJSON_Delete(root);
 
     return cardCount;
-
 }
 
 void shuffleCardsRandom(const char *deck_path, int count){
@@ -287,6 +331,7 @@ void shuffleCardsRandom(const char *deck_path, int count){
     free(newJson); 
 }
 
+
 void createDeck(const char *deck_path, const char *deck_title) {
     cJSON *root = cJSON_CreateObject();
     if (root == NULL) {
@@ -313,7 +358,28 @@ void createDeck(const char *deck_path, const char *deck_title) {
     free(newJson);
 }
 
+
 void deleteDeckFile(const char *deck_path) {
     remove(deck_path);
 }
 
+
+int deckList(const char* dir_path, char deckName[][67], int max) {
+    if (dir_path == NULL || deckName == NULL || max <= 0) return 0;
+
+    DIR *directory = opendir(dir_path);
+    if (directory == NULL) return 0;
+
+    int countDir = 0; 
+    struct dirent *entry;
+    while ((entry = readdir(directory)) != NULL && countDir < max) {
+        size_t nameLength = strlen(entry -> d_name);
+        if (nameLength > 5 && strcmp(entry -> d_name + nameLength - 5, ".json") == 0) {
+            snprintf(deckName[countDir], 67, "%s", entry -> d_name);
+            countDir++;
+        }
+    }
+
+    closedir(directory);
+    return countDir;
+}
