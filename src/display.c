@@ -47,7 +47,7 @@ void displayInit(){
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, &lcd_io_handle));
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = PIN_RST,
-        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
         .bits_per_pixel = 16,
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(lcd_io_handle, &panel_config, &lcd_panel_handle));
@@ -79,8 +79,8 @@ void lvglInit(){
         .rotation = { .swap_xy = false, .mirror_x = false, .mirror_y = false },
         .flags = { .buff_dma = true, .swap_bytes = true },
     };
-    lvgl_port_add_disp(&disp_cfg);
-    
+    lv_display_t *disp = lvgl_port_add_disp(&disp_cfg);
+    lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
     lvgl_port_lock(0);
     ui_init();
     lv_screen_load(objects.main);
