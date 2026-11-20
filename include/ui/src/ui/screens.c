@@ -38,7 +38,7 @@ void create_screen_main() {
             objects.progress = obj;
             lv_obj_set_pos(obj, 106, 25);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-            lv_obj_set_style_text_font(obj, &lv_font_montserrat_14, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_orbitron_bold_14, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xda99d1), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text(obj, "0/0");
         }
@@ -68,7 +68,7 @@ void create_screen_main() {
                     objects.card_label = obj;
                     lv_obj_set_pos(obj, 0, 86);
                     lv_obj_set_size(obj, LV_PCT(100), LV_PCT(16));
-                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_font(obj, &ui_font_orbitron_bold_16, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_color(obj, lv_color_hex(0x843179), LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_label_set_text(obj, "card");
                 }
@@ -90,16 +90,17 @@ void create_screen_main() {
             objects.obj1 = obj;
             lv_obj_set_pos(obj, 10, 275);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-            lv_obj_set_style_text_font(obj, &lv_font_montserrat_14, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_orbitron_14, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xd13f38), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text_static(obj, "DON'T \nKNOW");
         }
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj2 = obj;
-            lv_obj_set_pos(obj, 182, 283);
+            lv_obj_set_pos(obj, 179, 283);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0x6fd14d), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_orbitron_14, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text_static(obj, "KNOW");
         }
         {
@@ -108,6 +109,7 @@ void create_screen_main() {
             lv_obj_set_pos(obj, 94, 283);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xd7d9ad), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_orbitron_14, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text_static(obj, "SHOW");
         }
     }
@@ -129,10 +131,10 @@ void create_screen_decks() {
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj4 = obj;
-            lv_obj_set_pos(obj, 85, 14);
+            lv_obj_set_pos(obj, 80, 13);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xda99d1), LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_orbitron_bold_20, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text_static(obj, "DECKS");
         }
         {
@@ -141,6 +143,7 @@ void create_screen_decks() {
             objects.wifi_label = obj;
             lv_obj_set_pos(obj, 84, 36);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+            lv_obj_set_style_text_font(obj, &ui_font_orbitron_14, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text(obj, "Web: OFF");
         }
         {
@@ -152,38 +155,38 @@ void create_screen_decks() {
             lv_roller_set_options(obj, "no decks", LV_ROLLER_MODE_NORMAL);
             lv_obj_set_style_text_color(obj, lv_color_hex(0x843179), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0xda99d1), LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_obj_set_style_text_font(obj, &lv_font_montserrat_14, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_orbitron_14, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_color(obj, lv_color_hex(0x6b2862), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_shadow_width(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_shadow_color(obj, lv_color_hex(0x843179), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0xd14dc0), LV_PART_SELECTED | LV_STATE_DEFAULT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0x6fd14d), LV_PART_SELECTED | LV_STATE_DEFAULT);
-            lv_obj_set_style_text_font(obj, &lv_font_montserrat_14, LV_PART_SELECTED | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_orbitron_bold_14, LV_PART_SELECTED | LV_STATE_DEFAULT);
         }
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj5 = obj;
             lv_obj_set_pos(obj, 22, 283);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-            lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_orbitron_16, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xda99d1), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text_static(obj, "UP");
         }
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj6 = obj;
-            lv_obj_set_pos(obj, 85, 283);
+            lv_obj_set_pos(obj, 84, 283);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-            lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_orbitron_16, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xa9da99), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text_static(obj, "OPEN");
         }
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj7 = obj;
-            lv_obj_set_pos(obj, 173, 283);
+            lv_obj_set_pos(obj, 161, 283);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-            lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_orbitron_16, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xda99d1), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text_static(obj, "DOWN");
         }
@@ -214,6 +217,11 @@ void tick_screen_by_id(enum ScreensEnum screenId) {
 //
 
 ext_font_desc_t fonts[] = {
+    { "ORBITRON_14", &ui_font_orbitron_14 },
+    { "ORBITRON_BOLD_14", &ui_font_orbitron_bold_14 },
+    { "ORBITRON_BOLD_20", &ui_font_orbitron_bold_20 },
+    { "ORBITRON_BOLD_16", &ui_font_orbitron_bold_16 },
+    { "ORBITRON_16", &ui_font_orbitron_16 },
 #if LV_FONT_MONTSERRAT_8
     { "MONTSERRAT_8", &lv_font_montserrat_8 },
 #endif
