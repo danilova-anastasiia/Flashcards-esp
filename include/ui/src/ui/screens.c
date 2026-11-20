@@ -256,6 +256,10 @@ void ui_decks_move(int dir) {
     lv_roller_set_selected(objects.decks_roller, sel, LV_ANIM_OFF);
 }
 
+void ui_set_web(bool on) {
+    lv_label_set_text(objects.wifi_label, on ? "Web: ON":"Web: OFF");
+}
+
 //
 // Fonts
 //

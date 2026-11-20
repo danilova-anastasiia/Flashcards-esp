@@ -55,6 +55,8 @@ int  ui_decks_selected(void);
 
 void ui_decks_move(int dir);
 
+void ui_set_web(bool on);
+
 #ifdef __cplusplus
 }
 #endif
