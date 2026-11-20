@@ -10,6 +10,8 @@
 
 #include <string.h>
 
+#define MAX_DECKS 16
+
 objects_t objects;
 
 //
@@ -210,6 +212,48 @@ void tick_screen(int screen_index) {
 }
 void tick_screen_by_id(enum ScreensEnum screenId) {
     tick_screen(screenId - 1);
+}
+
+void ui_decks_set(char names[][67], int count) {
+    static char opts[MAX_DECKS * 67];
+    opts[0] = '\0';
+    
+    if(count<=0){
+        lv_roller_set_options(objects.decks_roller, "no decks", LV_ROLLER_MODE_NORMAL);
+        return;
+    }
+    if(count>MAX_DECKS){
+        count = MAX_DECKS;
+    }
+
+    for(int i=0; i<count; i++){
+        const char *dot = strrchr(names[i], '.');
+        size_t len = dot ? (size_t)(dot - names[i]) : strlen(names[i]);
+        strncat(opts, names[i], len);
+        if (i < count - 1) strcat(opts, "\n");
+    }
+    lv_roller_set_options(objects.decks_roller, opts, LV_ROLLER_MODE_NORMAL);
+    lv_roller_set_selected(objects.decks_roller, 0, LV_ANIM_OFF);
+}
+
+int ui_decks_selected(void) {
+    return (int)lv_roller_get_selected(objects.decks_roller);
+}
+
+void ui_decks_move(int dir) {
+    int count=(int)lv_roller_get_option_count(objects.decks_roller);
+    if(count<= 0){
+        return;
+    }
+
+    int sel=ui_decks_selected()+dir;
+    if (sel<0){
+        sel = 0;
+    }
+    if(sel>=count){
+        sel=count-1;
+    }
+    lv_roller_set_selected(objects.decks_roller, sel, LV_ANIM_OFF);
 }
 
 //

@@ -658,7 +658,8 @@
                 "definition": {
                   "MAIN": {
                     "DEFAULT": {
-                      "text_font": "ORBITRON_14"
+                      "text_font": "ORBITRON_14",
+                      "text_color": "#fafafa"
                     }
                   }
                 }

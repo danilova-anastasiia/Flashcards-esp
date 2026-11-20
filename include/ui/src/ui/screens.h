@@ -47,6 +47,14 @@ void tick_screen(int screen_index);
 
 void create_screens();
 
+//handwritten stuff
+
+void ui_decks_set(char names[][67], int count);
+
+int  ui_decks_selected(void);
+
+void ui_decks_move(int dir);
+
 #ifdef __cplusplus
 }
 #endif
