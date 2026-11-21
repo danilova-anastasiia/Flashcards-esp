@@ -47,6 +47,112 @@ static cJSON *loadJson(const char *deck_path) {
 
 }
 
+int deleteCardByIndex(const char *deck_path, int index) {
+    
+    cJSON *root = loadJson(deck_path);
+    if (root == NULL) {
+        return 0;
+    }
+
+    cJSON *arrayCards = cJSON_GetObjectItemCaseSensitive(root, "cards");
+    int size = cJSON_GetArraySize(arrayCards);
+    if (index < 0 || index >= size) {
+        cJSON_Delete(root);
+        return 0;
+    }
+
+
+    if (cJSON_IsArray(arrayCards)) {
+        cJSON_DeleteItemFromArray(arrayCards, index);
+    }
+    else {
+        cJSON_Delete(root);
+        return 0;
+    }
+
+
+    char *newJson = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (newJson == NULL) {
+        return 0;
+    }
+
+    FILE *file = fopen(deck_path, "wb");
+    if (file == NULL) {
+        free(newJson);
+        return 0;
+    }
+    else {
+        fputs(newJson, file);
+        fclose(file);
+    }
+
+
+    free(newJson); 
+    return 1;
+}
+
+
+int getCardCount(const char *deck_path) {
+
+    cJSON *root = loadJson(deck_path);
+    if (root == NULL) {
+        return 0;
+    }
+
+    cJSON *arrayCards = cJSON_GetObjectItemCaseSensitive(root, "cards");
+    int cardCount = 0;
+    if (cJSON_IsArray(arrayCards)) {
+        cardCount = cJSON_GetArraySize(arrayCards);
+    }
+    cJSON_Delete(root);
+
+    return cardCount;
+
+}
+
+int createDeck(const char *deck_path, const char *deck_title) {
+    
+    FILE *ifExistsCheck = fopen(deck_path, "rb");
+    if (ifExistsCheck != NULL) {
+        fclose(ifExistsCheck);
+        return 0;
+    }
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+        return 0;
+    }
+    cJSON_AddStringToObject(root, "title", deck_title);
+    cJSON_AddArrayToObject(root, "cards");
+
+    char *newJson = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (newJson == NULL) {
+        return 0;
+    }
+
+    FILE *file = fopen(deck_path, "wb");
+    if (file == NULL) {
+        free(newJson);
+        return 0;
+    }
+    else {
+        fputs(newJson, file);
+        fclose(file);
+    }
+    free(newJson);
+
+    return 1;
+}
+
+int deleteDeckFile(const char *deck_path) {
+    if (deck_path == NULL) {
+        return 0;
+    }
+    return remove(deck_path) == 0;
+}
+
+
 
 void deckClose() {
     if (deck_root != NULL) {
