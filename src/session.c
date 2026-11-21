@@ -3,8 +3,8 @@
 #include "cards.h"
 #include <stdlib.h>
 #include <stdint.h>
-#include "session.h"
-#include "pinout.h"
+#include "session/session.h"
+#include "session/pinout.h"
 #include "lvgl.h"
 #include "screens.h"
 #include "driver/gpio.h"
