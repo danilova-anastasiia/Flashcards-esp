@@ -153,8 +153,8 @@ int deleteDeckFile(const char *deck_path) {
 }
 
 
+void deckClose(void) {
 
-void deckClose() {
     if (deck_root != NULL) {
         cJSON_Delete(deck_root);
         deck_root = NULL;
@@ -204,12 +204,12 @@ int deckOpen(const char *deck_path) {
     return deck_count;
 }
 
-int deckSize() {
+int deckSize(void) {
     return deck_count;
 }
 
+void deckShuffle(void) {
 
-void deckShuffle() {
     int count = deckSize();
     if (order == NULL || count < 2) return;
 
@@ -221,10 +221,11 @@ void deckShuffle() {
             *(order + randomIndex) = temp;
         }
     }
+
 }
 
-
 const char* deckTerm(int pos) {
+
     if (deck_root == NULL || deck_cards == NULL || pos < 0 || pos >= deck_count) {
         return "";
     }
@@ -238,6 +239,7 @@ const char* deckTerm(int pos) {
 }
 
 const char* deckDefinition(int pos) {
+
     if (deck_root == NULL || deck_cards == NULL || pos < 0 || pos >= deck_count) {
         return "";
     }
@@ -247,10 +249,11 @@ const char* deckDefinition(int pos) {
 
     if (!cJSON_IsString(definition)) return "";
     return definition -> valuestring;
+
 }
 
-
 int addCard(const char* deck_path, const char *term, const char *definition) {
+    
     cJSON *root = loadJson(deck_path);
     if (root == NULL) {
         return 0;
@@ -291,186 +294,11 @@ int addCard(const char* deck_path, const char *term, const char *definition) {
     free(jsonString);
 
     return 1;
+
 }
-
-
-int deleteCardByIndex(const char *deck_path, int index) {
-    cJSON *root = loadJson(deck_path);
-    if (root == NULL) {
-        return 0;
-    } 
-
-    cJSON *arrayCards = cJSON_GetObjectItemCaseSensitive(root, "cards");
-    int size = cJSON_GetArraySize(arrayCards);
-    if (index < 0 || index >= size) {
-        cJSON_Delete(root);
-        return 0;
-    }
-
-
-    if (cJSON_IsArray(arrayCards)) {
-        cJSON_DeleteItemFromArray(arrayCards, index);
-    }
-    else {
-        cJSON_Delete(root);
-        return 0;
-    }
-
-
-    char *newJson = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
-    if (newJson == NULL) {
-        return 0;
-    }
-
-    FILE *file = fopen(deck_path, "wb");
-    if (file == NULL) {
-        free(newJson);
-        return 0;
-    }
-    else {
-        fputs(newJson, file);
-        fclose(file);
-    }
-
-
-    free(newJson); 
-    return 1;
-}
-
-
-int getCardCount(const char *deck_path) {
-    FILE *file = fopen(deck_path, "r");
-    if (file == NULL) {
-        return 0;
-    }
-
-    fseek(file, 0, SEEK_END);
-    long sizeOfFile = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    char *buffer = malloc(sizeOfFile + 1);
-        if (buffer == NULL) {
-            fclose(file);
-            return 0;
-        }
-
-    size_t sizeInBytesRead = fread(buffer, 1, sizeOfFile, file);
-    buffer[sizeInBytesRead] = '\0';
-    fclose(file);
-
-    cJSON *root = cJSON_Parse(buffer);
-    free(buffer);
-    if (root == NULL) {
-        return 0;
-    }
-
-    int cardCount = 0;
-    if (cJSON_IsArray(root)) {
-        cardCount = cJSON_GetArraySize(root);
-    }
-    cJSON_Delete(root);
-
-    return cardCount;
-}
-
-void shuffleCardsRandom(const char *deck_path, int count){
-    FILE *file = fopen(deck_path, "r");
-    if (file == NULL) {
-        return;
-    }
-
-    fseek(file, 0, SEEK_END);
-    long sizeOfFile = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    char *buffer = malloc(sizeOfFile + 1);
-        if (buffer == NULL) {
-            fclose(file);
-            return;
-        }
-
-    size_t sizeInBytesRead = fread(buffer, 1, sizeOfFile, file);
-    buffer[sizeInBytesRead] = '\0';
-    fclose(file);
-
-    cJSON *root = cJSON_Parse(buffer);
-    free(buffer);
-    if (root == NULL) {
-        return;
-    }
-
-    cJSON *arrayOfCards = cJSON_GetObjectItemCaseSensitive(root, "cards");
-    if (cJSON_IsArray(arrayOfCards)) {
-        for (int i = count - 1; i > 0; i--) {
-            int randomCardIndex = rand() % (i + 1);
-            if (randomCardIndex != i) {
-                cJSON *cardFromI = cJSON_GetArrayItem(arrayOfCards, i);
-                cJSON *cardFromRand = cJSON_GetArrayItem(arrayOfCards, randomCardIndex);
-
-                cJSON *copyFromI = cJSON_Duplicate(cardFromI, 1);
-                cJSON *copyFromRand = cJSON_Duplicate(cardFromRand, 1);
-
-                cJSON_ReplaceItemInArray(arrayOfCards, i, copyFromRand);
-                cJSON_ReplaceItemInArray(arrayOfCards, randomCardIndex, copyFromI);
-            }
-        }
-    }
-
-    char *newJson = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
-    if (newJson == NULL) {
-        return;
-    }
-
-    file = fopen(deck_path, "w");
-    if (file == NULL) {
-        free(newJson);
-        return;
-    }
-    else {
-        fputs(newJson, file);
-        fclose(file);
-    }
-
-
-    free(newJson); 
-}
-
-
-void createDeck(const char *deck_path, const char *deck_title) {
-    cJSON *root = cJSON_CreateObject();
-    if (root == NULL) {
-        return;
-    }
-    cJSON_AddStringToObject(root, "title", deck_title);
-    cJSON_AddArrayToObject(root, "cards");
-
-    char *newJson = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
-    if (newJson == NULL) {
-        return;
-    }
-
-    FILE *file = fopen(deck_path, "w");
-    if (file == NULL) {
-        free(newJson);
-        return;
-    }
-    else {
-        fputs(newJson, file);
-        fclose(file);
-    }
-    free(newJson);
-}
-
-
-void deleteDeckFile(const char *deck_path) {
-    remove(deck_path);
-}
-
 
 int deckList(const char* dir_path, char deckName[][67], int max) {
+
     if (dir_path == NULL || deckName == NULL || max <= 0) return 0;
 
     DIR *directory = opendir(dir_path);
@@ -488,4 +316,5 @@ int deckList(const char* dir_path, char deckName[][67], int max) {
 
     closedir(directory);
     return countDir;
+
 }
