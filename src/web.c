@@ -25,10 +25,12 @@ extern const char index_html_end[]   asm("_binary_index_html_end");
 
 static esp_err_t getIndexHandler(httpd_req_t *req);
 static esp_err_t getListDecksHandler(httpd_req_t *req);
+static esp_err_t getDeckOpenHandler(httpd_req_t *req);
 
 static const httpd_uri_t uris[] = {
     {.uri = "/",.method = HTTP_GET,.handler = getIndexHandler},
-    {.uri = "/decks",.method = HTTP_GET,.handler = getListDecksHandler}
+    {.uri = "/decks",.method = HTTP_GET,.handler = getListDecksHandler},
+    {.uri = "/deck",.method = HTTP_GET,.handler = getDeckOpenHandler}
 };
 
 static httpd_handle_t server_handle = NULL;
@@ -114,7 +116,7 @@ static esp_err_t getListDecksHandler(httpd_req_t *req){
 
     for (int i = 0; i < n; i++) {
         char path[128];
-        snprintf(path, sizeof path, "%s/%s", DECK_DIR, names[i]);
+        snprintf(path, sizeof(path), "%s/%s", DECK_DIR, names[i]);
 
         char *dot=strrchr(names[i], '.');
         if(dot){
@@ -129,6 +131,33 @@ static esp_err_t getListDecksHandler(httpd_req_t *req){
     return sendJson(req, "200 OK", arr);
 }
 
+static esp_err_t getDeckOpenHandler(httpd_req_t *req){
+    char name[67], path[128], query[96];
+
+    httpd_req_get_url_query_str(req, query, sizeof(query));
+    httpd_query_key_value(query, "name", name, sizeof(name));
+
+    snprintf(path, sizeof(path), "%s/%s.json", DECK_DIR, name);
+    FILE *f = fopen(path, "rb");
+    if(!f){
+        cJSON *o = cJSON_CreateObject();
+        cJSON_AddBoolToObject(o, "ok", false);
+        cJSON_AddStringToObject(o, "error", "deck not found");
+        return sendJson(req, "404 not found", o);
+    }
+    httpd_resp_set_type(req, "application/json");
+    char chunk[512];
+    size_t n;
+    while((n = fread(chunk, 1, sizeof(chunk), f)) > 0){
+        if(httpd_resp_send_chunk(req, chunk, (ssize_t)n)!=ESP_OK){
+            fclose(f);
+            return ESP_FAIL;
+        }
+    }
+    fclose(f);
+    return httpd_resp_send_chunk(req, NULL, 0);
+}
+
 void serverInit(void){
     httpd_config_t server_config = HTTPD_DEFAULT_CONFIG();
 
@@ -138,7 +167,7 @@ void serverInit(void){
         return;
     }
 
-    for (size_t i = 0; i < sizeof uris / sizeof uris[0]; i++) {
+    for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); i++) {
         httpd_register_uri_handler(server_handle, &uris[i]);
     }
 
