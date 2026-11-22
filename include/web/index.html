@@ -1,9 +1,57 @@
-<!doctype html>
-<html>
-  <head>
-    <title>This is the title of the webpage!</title>
-  </head>
-  <body>
-    <p>This is an example paragraph. Anything in the <strong>body</strong> tag will appear on the page, just like this <strong>p</strong> tag and its contents.</p>
-  </body>
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flashcards ESP32</title>
+</head>
+<body>
+  <h1>Flashcards ESP32</h1>
+  <div id="status">loadinf...</div>
+
+  <div>
+    <button onclick="loadDecks()">Load the deck list</button>
+  </div>
+
+  <div id="decks"></div>
+
+  <script>
+    async function loadDecks() {
+      const statusEl = document.getElementById("status");
+      const listEl = document.getElementById("decks");
+
+      statusEl.textContent = "Updating of the deck list...";
+      listEl.innerHTML = "";
+
+        const res = await fetch("/decks");
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status);
+        }
+
+        const decks = await res.json();
+        statusEl.textContent = "Decks found: " + decks.length;
+
+        if (decks.length === 0) {
+          listEl.textContent = "No decks";
+          return;
+        }
+
+        for (const deck of decks) {
+          const item = document.createElement("div");
+
+          const nameSpan = document.createElement("strong");
+          nameSpan.textContent = deck.name;
+
+          const countSpan = document.createElement("span");
+          countSpan.textContent = " (" + deck.cards + " cards)";
+
+          item.appendChild(nameSpan);
+          item.appendChild(countSpan);
+          listEl.appendChild(item);
+        }
+    }
+
+    loadDecks();
+  </script>
+</body>
 </html>

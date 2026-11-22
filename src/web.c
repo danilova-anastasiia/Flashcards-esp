@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/timers.h"
@@ -10,14 +11,38 @@
 #include "esp_netif.h"
 #include "esp_check.h"
 #include "esp_http_server.h"
+#include "cJSON.h"
 
 #include "web/credentials.h"
 #include "web/web.h"
+#include "cards.h"
+
+#define MAX_DECKS 16
+#define DECK_DIR  "/sdcard/decks"
 
 extern const char index_html_start[] asm("_binary_index_html_start");
 extern const char index_html_end[]   asm("_binary_index_html_end");
 
+static esp_err_t getIndexHandler(httpd_req_t *req);
+static esp_err_t getListDecksHandler(httpd_req_t *req);
+
+static const httpd_uri_t uris[] = {
+    {.uri = "/",.method = HTTP_GET,.handler = getIndexHandler},
+    {.uri = "/decks",.method = HTTP_GET,.handler = getListDecksHandler}
+};
+
 static httpd_handle_t server_handle = NULL;
+
+static esp_err_t sendJson(httpd_req_t *req, const char *status, cJSON *obj) {
+    char *text = cJSON_PrintUnformatted(obj);
+    cJSON_Delete(obj);
+    httpd_resp_set_status(req, status);
+    httpd_resp_set_type(req, "application/json");
+    esp_err_t r = httpd_resp_sendstr(req, text);
+    free(text);
+    return r;
+}
+
 static void wifiEventHandler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data){
     if (event_base == WIFI_EVENT){
         switch (event_id){
@@ -73,13 +98,38 @@ void connectWifi(){
 }
 
 
-
-static esp_err_t getHandler(httpd_req_t *req){
+static esp_err_t getIndexHandler(httpd_req_t *req){
     httpd_resp_set_type(req, "text/html");
-    return httpd_resp_send(req, index_html_start,index_html_end - index_html_start - 1);
+    return httpd_resp_send(req, index_html_start, index_html_end - index_html_start - 1);
 }
 
-void serverInit(){
+static esp_err_t getListDecksHandler(httpd_req_t *req){
+    static char names[MAX_DECKS][67];
+    int n = deckList(DECK_DIR, names, MAX_DECKS);
+
+    cJSON *arr = cJSON_CreateArray();
+    if (!arr) {
+        return httpd_resp_send_500(req);
+    }
+
+    for (int i = 0; i < n; i++) {
+        char path[128];
+        snprintf(path, sizeof path, "%s/%s", DECK_DIR, names[i]);
+
+        char *dot=strrchr(names[i], '.');
+        if(dot){
+            *dot='\0';
+        }
+
+        cJSON *deck = cJSON_CreateObject();
+        cJSON_AddStringToObject(deck, "name", names[i]);
+        cJSON_AddNumberToObject(deck, "cards", getCardCount(path));
+        cJSON_AddItemToArray(arr, deck);
+    }
+    return sendJson(req, "200 OK", arr);
+}
+
+void serverInit(void){
     httpd_config_t server_config = HTTPD_DEFAULT_CONFIG();
 
     if (httpd_start(&server_handle, &server_config) != ESP_OK) {
@@ -88,12 +138,9 @@ void serverInit(){
         return;
     }
 
-    httpd_uri_t uri_get = {
-        .uri = "/",
-        .method = HTTP_GET,
-        .handler = getHandler,
-        .user_ctx = NULL,
-    };
-    httpd_register_uri_handler(server_handle, &uri_get);
+    for (size_t i = 0; i < sizeof uris / sizeof uris[0]; i++) {
+        httpd_register_uri_handler(server_handle, &uris[i]);
+    }
+
     printf("Server started\n");
 }
