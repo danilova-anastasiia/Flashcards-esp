@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "session/session.h"
-#include "session/pinout.h"
+#include "session/pinout_buttons.h"
 #include "lvgl.h"
 #include "screens.h"
 #include "driver/gpio.h"
@@ -35,7 +35,7 @@ static void render(void) {
     if (total <= 0) {
         lv_label_set_text(objects.card_label, "Дека порожня");
         lv_label_set_text(objects.progress, "0 / 0");
-        lv_obj_add_flag(objects.result_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.result_label, true);
         return;
     }
 
@@ -43,12 +43,12 @@ static void render(void) {
         char buffer[67];
         snprintf(buffer, sizeof(buffer), "Знаю: %d / %d", knownCount, total);
         lv_label_set_text(objects.result_label, buffer);
-        lv_obj_clear_flag(objects.result_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.result_label, false);
         lv_label_set_text(objects.card_label, "Деку пройдено!");
         return;
     }
 
-    lv_obj_add_flag(objects.result_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(objects.result_label, true);
 
     const char *text = showDef ? deckDefinition(currentIndex) : deckTerm(currentIndex);
     lv_label_set_text(objects.card_label, text);
