@@ -18,6 +18,7 @@
 #include "cards.h"
 
 #define MAX_DECKS 16
+#define MAX_BODY  8192
 #define DECK_DIR  "/sdcard/decks"
 
 extern const char index_html_start[] asm("_binary_index_html_start");
@@ -26,11 +27,16 @@ extern const char index_html_end[]   asm("_binary_index_html_end");
 static esp_err_t getIndexHandler(httpd_req_t *req);
 static esp_err_t getListDecksHandler(httpd_req_t *req);
 static esp_err_t getDeckOpenHandler(httpd_req_t *req);
+static esp_err_t postDeckHandler(httpd_req_t *req);
+static esp_err_t deleteDeckHandler(httpd_req_t *req);
+
 
 static const httpd_uri_t uris[] = {
     {.uri = "/",.method = HTTP_GET,.handler = getIndexHandler},
     {.uri = "/decks",.method = HTTP_GET,.handler = getListDecksHandler},
-    {.uri = "/deck",.method = HTTP_GET,.handler = getDeckOpenHandler}
+    {.uri = "/deck",.method = HTTP_GET,.handler = getDeckOpenHandler},
+    {.uri = "/deck",.method = HTTP_POST,.handler = postDeckHandler},
+    {.uri = "/deck",.method = HTTP_DELETE,.handler = deleteDeckHandler}
 };
 
 static httpd_handle_t server_handle = NULL;
@@ -43,6 +49,32 @@ static esp_err_t sendJson(httpd_req_t *req, const char *status, cJSON *obj) {
     esp_err_t r = httpd_resp_sendstr(req, text);
     free(text);
     return r;
+}
+
+static char *readBody(httpd_req_t *req) {
+    size_t len = req->content_len;
+    if(len == 0 || len > MAX_BODY){
+        return NULL;
+    }
+
+    char *buf = malloc(len + 1);
+    
+    if(!buf){
+        return NULL;
+    }
+
+    size_t got = 0;
+    int timeouts = 0;
+    while(got<len){
+        int r = httpd_req_recv(req, buf + got, len - got);
+        if(r == HTTPD_SOCK_ERR_TIMEOUT && ++timeouts < 5) continue;
+        if(r<= 0){ 
+            free(buf); return NULL;
+        }
+        got += (size_t)r;
+    }
+    buf[len] = '\0';
+    return buf;
 }
 
 static void wifiEventHandler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data){
@@ -113,7 +145,6 @@ static esp_err_t getListDecksHandler(httpd_req_t *req){
     if (!arr) {
         return httpd_resp_send_500(req);
     }
-
     for (int i = 0; i < n; i++) {
         char path[128];
         snprintf(path, sizeof(path), "%s/%s", DECK_DIR, names[i]);
@@ -122,13 +153,75 @@ static esp_err_t getListDecksHandler(httpd_req_t *req){
         if(dot){
             *dot='\0';
         }
-
         cJSON *deck = cJSON_CreateObject();
         cJSON_AddStringToObject(deck, "name", names[i]);
         cJSON_AddNumberToObject(deck, "cards", getCardCount(path));
         cJSON_AddItemToArray(arr, deck);
     }
     return sendJson(req, "200 OK", arr);
+}
+
+static esp_err_t postDeckHandler(httpd_req_t *req) {
+    char *body = readBody(req);
+    cJSON *in = cJSON_Parse(body);
+    free(body);
+    if(!in){
+        cJSON *err = cJSON_CreateObject();
+        cJSON_AddBoolToObject(err, "ok", false);
+        cJSON_AddStringToObject(err, "error", "invalid json");
+        return sendJson(req, "400 Bad Request", err);
+    }
+
+    cJSON *name = cJSON_GetObjectItemCaseSensitive(in, "name");
+    cJSON *title = cJSON_GetObjectItemCaseSensitive(in, "title");
+
+    if(!cJSON_IsString(name) || name->valuestring[0] == '\0'){
+        cJSON_Delete(in);
+        cJSON *err = cJSON_CreateObject();
+        cJSON_AddBoolToObject(err, "ok", false);
+        cJSON_AddStringToObject(err, "error", "missing deck name");
+        return sendJson(req, "400 Bad Request", err);
+    }
+
+    char path[128];
+    snprintf(path, sizeof(path), "%s/%s.json", DECK_DIR, name->valuestring);
+
+    const char *t=(cJSON_IsString(title)&&title->valuestring[0] != '\0') ? title->valuestring: name->valuestring;
+
+    esp_err_t r = createDeck(path, t);
+    cJSON_Delete(in);
+
+    cJSON *o = cJSON_CreateObject();
+    if(r == ESP_OK){
+        cJSON_AddBoolToObject(o, "ok", true);
+        cJSON_AddNumberToObject(o, "added", 0);
+        return sendJson(req, "200 OK", o);
+    }
+
+    cJSON_AddBoolToObject(o, "ok", false);
+    cJSON_AddStringToObject(o, "error", "failed to create deck");
+    return sendJson(req, "500 Internal Server Error", o);
+}
+
+static esp_err_t deleteDeckHandler(httpd_req_t *req){
+    char name[48], path[128], query[96];
+
+    httpd_req_get_url_query_str(req, query, sizeof(query));
+    httpd_query_key_value(query, "name", name, sizeof(name));
+
+    snprintf(path, sizeof(path), "%s/%s.json", DECK_DIR, name);
+
+    cJSON *o = cJSON_CreateObject();
+    
+    if(deleteDeckFile(path)){
+        cJSON_AddBoolToObject(o, "ok", true);
+        cJSON_AddNumberToObject(o, "added", 0);
+        return sendJson(req, "200 OK", o);
+    }else{
+        cJSON_AddBoolToObject(o, "ok", false);
+        cJSON_AddStringToObject(o, "error", "deck not found");
+        return sendJson(req, "404 not found", o);
+    }
 }
 
 static esp_err_t getDeckOpenHandler(httpd_req_t *req){
@@ -166,7 +259,6 @@ void serverInit(void){
         server_handle = NULL;
         return;
     }
-
     for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); i++) {
         httpd_register_uri_handler(server_handle, &uris[i]);
     }

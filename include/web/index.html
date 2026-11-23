@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,6 +9,13 @@
   <h1>Flashcards ESP32</h1>
   <div id="status">loadinf...</div>
 
+  <h3>Create new deck</h3>
+  <form onsubmit="createDeck(event)">
+    <input id="deck-name" type="text" placeholder="File name (e.g. c_pointers)" required maxlength="47" />
+    <input id="deck-title" type="text" placeholder="Title (optional)" />
+    <button type="submit" id="create-btn">Create</button>
+  </form>
+  
   <div>
     <button onclick="loadDecks()">Load the deck list</button>
   </div>
@@ -19,45 +26,64 @@
   <div id="selected-deck">no deck selected</div>
   <div id="cards"></div>
   <script>
+    let currentDeckName = null;
+
+    function setStatus(text, isError = false) {
+      const statusEl = document.getElementById("status");
+      statusEl.textContent = text;
+      statusEl.style.color = isError ? "crimson" : "inherit";
+    }
+
     async function loadDecks() {
       const statusEl = document.getElementById("status");
       const listEl = document.getElementById("decks");
 
       statusEl.textContent = "Updating of the deck list...";
+      statusEl.style.color = "inherit";
       listEl.innerHTML = "";
 
-      const res = await fetch("/decks");
-      if (!res.ok) {
-        throw new Error("HTTP " + res.status);
-      }
-
-      const decks = await res.json();
-      statusEl.textContent = "Decks found: " + decks.length;
-
-      if (decks.length === 0) {
-        listEl.textContent = "No decks";
-        return;
-      }
-
-      for (const deck of decks) {
-        const item = document.createElement("div");
-
-        const nameSpan = document.createElement("strong");
-        nameSpan.textContent = deck.name;
-
-        const countSpan = document.createElement("span");
-        countSpan.textContent = " (" + deck.cards + " cards)";
-        
-        const openBtn = document.createElement("button");
-        openBtn.textContent = "Open";
-        openBtn.onclick = () => loadDeck(deck.name);
-
-        item.appendChild(nameSpan);
-        item.appendChild(countSpan);
-        item.appendChild(openBtn);
-        listEl.appendChild(item);
+      try {
+        const res = await fetch("/decks");
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status);
         }
+
+        const decks = await res.json();
+        statusEl.textContent = "Decks found: " + decks.length;
+
+        if (decks.length === 0) {
+          listEl.textContent = "No decks";
+          return;
+        }
+
+        for (const deck of decks) {
+          const item = document.createElement("div");
+
+          const nameSpan = document.createElement("strong");
+          nameSpan.textContent = deck.name;
+
+          const countSpan = document.createElement("span");
+          countSpan.textContent = " (" + deck.cards + " cards)";
+          
+          const openBtn = document.createElement("button");
+          openBtn.textContent = "Open";
+          openBtn.onclick = () => loadDeck(deck.name);
+
+          const delBtn = document.createElement("button");
+          delBtn.textContent = "Delete";
+          delBtn.onclick = () => deleteDeck(deck.name);
+
+          item.appendChild(nameSpan);
+          item.appendChild(countSpan);
+          item.appendChild(openBtn);
+          item.appendChild(delBtn);
+          listEl.appendChild(item);
+        }
+      } catch (err) {
+        setStatus(err.message, true);
+      }
     }
+
     async function loadDeck(name) {
       const selectedEl = document.getElementById("selected-deck");
       const cardsEl = document.getElementById("cards");
@@ -65,30 +91,101 @@
       selectedEl.textContent = "Loading the deck: " + name + "...";
       cardsEl.innerHTML = "";
 
-      const res = await fetch("/deck?name=" + encodeURIComponent(name));
-      const data = await res.json();
+      try {
+        const res = await fetch("/deck?name=" + encodeURIComponent(name));
+        const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || ("HTTP " + res.status));
+        if (!res.ok) {
+          throw new Error(data.error || ("HTTP " + res.status));
+        }
+
+        currentDeckName = name;
+        selectedEl.textContent = "Deck: " + (data.title || name);
+
+        const cards = Array.isArray(data.cards) ? data.cards : [];
+        if (cards.length === 0) {
+          cardsEl.textContent = "there is no cards in this deck";
+          return;
+        }
+
+        const ul = document.createElement("ul");
+        for (const card of cards) {
+          const li = document.createElement("li");
+          li.textContent = (card.term || "") + " — " + (card.definition || "");
+          ul.appendChild(li);
+        }
+        cardsEl.appendChild(ul);
+      } catch (err) {
+        setStatus(err.message, true);
       }
-
-      selectedEl.textContent = "Deck: " + (data.title || name);
-
-      const cards = Array.isArray(data.cards) ? data.cards : [];
-      if (cards.length === 0) {
-        cardsEl.textContent = "there is no cards in this deck";
-        return;
-      }
-
-      const ul = document.createElement("ul");
-      for (const card of cards) {
-        const li = document.createElement("li");
-        li.textContent = (card.term || "") + " — " + (card.definition || "");
-        ul.appendChild(li);
-      }
-      cardsEl.appendChild(ul);
-      
     }
+
+    async function createDeck(event) {
+      event.preventDefault();
+
+      const nameInput = document.getElementById("deck-name");
+      const titleInput = document.getElementById("deck-title");
+      const createBtn = document.getElementById("create-btn");
+
+      const name = nameInput.value.trim();
+      const title = titleInput.value.trim();
+
+      if (!name) return;
+
+      createBtn.disabled = true;
+      setStatus("creating deck...");
+
+      try {
+        const res = await fetch("/deck", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, title })
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || ("HTTP " + res.status));
+        }
+
+        nameInput.value = "";
+        titleInput.value = "";
+        setStatus("Deck created: " + name);
+        await loadDecks();
+      } catch (err) {
+        setStatus(err.message, true);
+      } finally {
+        createBtn.disabled = false;
+      }
+    }
+
+    async function deleteDeck(name) {
+      if (!confirm('Delete deck "' + name + '"?')) return;
+
+      setStatus("deleting " + name + "...");
+
+      try {
+        const res = await fetch("/deck?name=" + encodeURIComponent(name), {
+          method: "DELETE"
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || ("HTTP " + res.status));
+        }
+
+        if (currentDeckName === name) {
+          currentDeckName = null;
+          document.getElementById("selected-deck").textContent = "No deck selected";
+          document.getElementById("cards").innerHTML = "";
+        }
+
+        setStatus("deleted: " + name);
+        await loadDecks();
+      } catch (err) {
+        setStatus(err.message, true);
+      }
+    }
+
     loadDecks();
   </script>
 </body>
