@@ -17,6 +17,7 @@
 #include "web/web.h"
 #include "cards.h"
 
+#define WIFI_MAX_RETRY 10
 #define MAX_DECKS 16
 #define MAX_BODY  8192
 #define MAX_TEXT  200
@@ -42,6 +43,8 @@ static const httpd_uri_t uris[] = {
     {.uri = "/card",.method = HTTP_POST,.handler = postCardsHandler},
     {.uri = "/card",.method = HTTP_DELETE,.handler = deleteCardsHandler}
 };
+
+static int wifi_retry_count = 0;
 
 static httpd_handle_t server_handle = NULL;
 
@@ -85,26 +88,34 @@ static void wifiEventHandler(void *event_handler_arg, esp_event_base_t event_bas
     if (event_base == WIFI_EVENT){
         switch (event_id){
         case WIFI_EVENT_STA_START:
+            wifi_retry_count = 0;
             printf("WiFi connecting ... \n");
+            esp_wifi_connect();
             break;
 
         case WIFI_EVENT_STA_CONNECTED:
+            wifi_retry_count = 0;
             printf("WiFi connected ... \n");
             break;
 
         case WIFI_EVENT_STA_DISCONNECTED:
-            printf("WiFi lost connection ... \n");
-            break;
-
-        case IP_EVENT_STA_GOT_IP:
-            printf("WiFi got IP ... \n\n");
+            printf("WiFi disconnected / attempt failed ... \n");
+            if (wifi_retry_count < WIFI_MAX_RETRY) {
+                wifi_retry_count++;
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                printf("Retrying WiFi (%d/%d)...\n", wifi_retry_count, WIFI_MAX_RETRY);
+                esp_wifi_connect();
+            } else {
+                printf("WiFi retry limit reached\n");
+            }
             break;
 
         default:
             break;
         }
-    }else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *e = (ip_event_got_ip_t *)event_data;
+        wifi_retry_count = 0;
         printf("WiFi got IP: " IPSTR "\n", IP2STR(&e->ip_info.ip));
         if (server_handle == NULL) {
             serverInit();
