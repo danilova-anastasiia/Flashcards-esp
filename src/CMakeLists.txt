@@ -8,5 +8,5 @@ idf_component_register(
     INCLUDE_DIRS "../include"
     EMBED_TXTFILES "../include/web/index.html"
     REQUIRES fatfs sdmmc driver esp_driver_spi esp_driver_gpio esp_lcd esp_timer
-             esp_event nvs_flash
+             esp_event nvs_flash esp_http_server esp_wifi esp_netif
 )
