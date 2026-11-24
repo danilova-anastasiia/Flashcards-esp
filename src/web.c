@@ -19,6 +19,7 @@
 
 #define MAX_DECKS 16
 #define MAX_BODY  8192
+#define MAX_TEXT  200
 #define DECK_DIR  "/sdcard/decks"
 
 extern const char index_html_start[] asm("_binary_index_html_start");
@@ -29,14 +30,17 @@ static esp_err_t getListDecksHandler(httpd_req_t *req);
 static esp_err_t getDeckOpenHandler(httpd_req_t *req);
 static esp_err_t postDeckHandler(httpd_req_t *req);
 static esp_err_t deleteDeckHandler(httpd_req_t *req);
-
+static esp_err_t postCardsHandler(httpd_req_t *req);
+static esp_err_t deleteCardsHandler(httpd_req_t *req);
 
 static const httpd_uri_t uris[] = {
     {.uri = "/",.method = HTTP_GET,.handler = getIndexHandler},
     {.uri = "/decks",.method = HTTP_GET,.handler = getListDecksHandler},
     {.uri = "/deck",.method = HTTP_GET,.handler = getDeckOpenHandler},
     {.uri = "/deck",.method = HTTP_POST,.handler = postDeckHandler},
-    {.uri = "/deck",.method = HTTP_DELETE,.handler = deleteDeckHandler}
+    {.uri = "/deck",.method = HTTP_DELETE,.handler = deleteDeckHandler},
+    {.uri = "/card",.method = HTTP_POST,.handler = postCardsHandler},
+    {.uri = "/card",.method = HTTP_DELETE,.handler = deleteCardsHandler}
 };
 
 static httpd_handle_t server_handle = NULL;
@@ -249,6 +253,60 @@ static esp_err_t getDeckOpenHandler(httpd_req_t *req){
     }
     fclose(f);
     return httpd_resp_send_chunk(req, NULL, 0);
+}
+
+static esp_err_t postCardsHandler(httpd_req_t *req) {
+    char *body = readBody(req);
+
+    cJSON *in = cJSON_Parse(body);
+    free(body);
+    if(!in){
+        cJSON *err = cJSON_CreateObject();
+        cJSON_AddBoolToObject(err, "ok", false);
+        cJSON_AddStringToObject(err, "error", "invalid json");
+        return sendJson(req, "400 Bad Request", err);
+    }
+
+    cJSON *deck= cJSON_GetObjectItemCaseSensitive(in, "deck");
+    cJSON *term = cJSON_GetObjectItemCaseSensitive(in, "term");
+    cJSON *definition = cJSON_GetObjectItemCaseSensitive(in, "definition");
+
+    char path[128];
+    snprintf(path, sizeof(path), "%s/%s.json", DECK_DIR, deck->valuestring);
+
+    int r = addCard(path, term->valuestring, definition->valuestring);
+    cJSON_Delete(in);
+
+    cJSON *o = cJSON_CreateObject();
+    if(r){
+        cJSON_AddBoolToObject(o, "ok", true);
+        return sendJson(req, "200 OK", o);
+    }else{
+        cJSON_AddBoolToObject(o, "ok", false);
+        cJSON_AddStringToObject(o, "error", "failed to add card");
+        return sendJson(req, "400 Bad Request", o);
+    }
+}
+
+static esp_err_t deleteCardsHandler(httpd_req_t *req) {
+    char deck[67], index_str[16], query[128], path[128];
+
+    httpd_req_get_url_query_str(req, query, sizeof(query));
+    httpd_query_key_value(query, "deck", deck, sizeof(deck));
+    httpd_query_key_value(query, "index", index_str, sizeof(index_str));
+
+    int idx=atoi(index_str);
+    snprintf(path, sizeof(path), "%s/%s.json", DECK_DIR, deck);
+
+    cJSON *o = cJSON_CreateObject();
+    if(deleteCardByIndex(path, idx)){
+        cJSON_AddBoolToObject(o, "ok", true);
+        return sendJson(req, "200 OK", o);
+    }else{
+        cJSON_AddBoolToObject(o, "ok", false);
+        cJSON_AddStringToObject(o, "error", "card or deck not found");
+        return sendJson(req, "404 Not Found", o);
+    }
 }
 
 void serverInit(void){
