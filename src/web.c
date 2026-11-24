@@ -84,6 +84,20 @@ static char *readBody(httpd_req_t *req) {
     return buf;
 }
 
+static esp_err_t fail(httpd_req_t *req, const char *status, const char *message){
+    cJSON *o = cJSON_CreateObject();
+    cJSON_AddBoolToObject(o, "ok", false);
+    cJSON_AddStringToObject(o, "error", message);
+    return sendJson(req, status, o);
+}
+
+static esp_err_t success(httpd_req_t *req, int added){
+    cJSON *o = cJSON_CreateObject();
+    cJSON_AddBoolToObject(o, "ok", true);
+    cJSON_AddNumberToObject(o, "added", added);
+    return sendJson(req, "200 OK", o);
+}
+
 static void wifiEventHandler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data){
     if (event_base == WIFI_EVENT){
         switch (event_id){
@@ -206,16 +220,11 @@ static esp_err_t postDeckHandler(httpd_req_t *req) {
     esp_err_t r = createDeck(path, t);
     cJSON_Delete(in);
 
-    cJSON *o = cJSON_CreateObject();
     if(r == ESP_OK){
-        cJSON_AddBoolToObject(o, "ok", true);
-        cJSON_AddNumberToObject(o, "added", 0);
-        return sendJson(req, "200 OK", o);
+        return success(req, 0);
     }
 
-    cJSON_AddBoolToObject(o, "ok", false);
-    cJSON_AddStringToObject(o, "error", "failed to create deck");
-    return sendJson(req, "500 Internal Server Error", o);
+    return fail(req, "400 Bad Request","failed to create deck");
 }
 
 static esp_err_t deleteDeckHandler(httpd_req_t *req){
@@ -225,17 +234,11 @@ static esp_err_t deleteDeckHandler(httpd_req_t *req){
     httpd_query_key_value(query, "name", name, sizeof(name));
 
     snprintf(path, sizeof(path), "%s/%s.json", DECK_DIR, name);
-
-    cJSON *o = cJSON_CreateObject();
     
     if(deleteDeckFile(path)){
-        cJSON_AddBoolToObject(o, "ok", true);
-        cJSON_AddNumberToObject(o, "added", 0);
-        return sendJson(req, "200 OK", o);
+        return success(req, 0);
     }else{
-        cJSON_AddBoolToObject(o, "ok", false);
-        cJSON_AddStringToObject(o, "error", "deck not found");
-        return sendJson(req, "404 not found", o);
+        return fail(req, "404 Not Found","deck not found");
     }
 }
 
@@ -248,10 +251,7 @@ static esp_err_t getDeckOpenHandler(httpd_req_t *req){
     snprintf(path, sizeof(path), "%s/%s.json", DECK_DIR, name);
     FILE *f = fopen(path, "rb");
     if(!f){
-        cJSON *o = cJSON_CreateObject();
-        cJSON_AddBoolToObject(o, "ok", false);
-        cJSON_AddStringToObject(o, "error", "deck not found");
-        return sendJson(req, "404 not found", o);
+        fail(req, "error","deck not found");
     }
     httpd_resp_set_type(req, "application/json");
     char chunk[512];
@@ -272,10 +272,7 @@ static esp_err_t postCardsHandler(httpd_req_t *req) {
     cJSON *in = cJSON_Parse(body);
     free(body);
     if(!in){
-        cJSON *err = cJSON_CreateObject();
-        cJSON_AddBoolToObject(err, "ok", false);
-        cJSON_AddStringToObject(err, "error", "invalid json");
-        return sendJson(req, "400 Bad Request", err);
+       return fail(req, "400 Bad Request","invalid json");;
     }
 
     cJSON *deck= cJSON_GetObjectItemCaseSensitive(in, "deck");
@@ -288,14 +285,11 @@ static esp_err_t postCardsHandler(httpd_req_t *req) {
     int r = addCard(path, term->valuestring, definition->valuestring);
     cJSON_Delete(in);
 
-    cJSON *o = cJSON_CreateObject();
     if(r){
-        cJSON_AddBoolToObject(o, "ok", true);
-        return sendJson(req, "200 OK", o);
+        return success(req, 0);
+
     }else{
-        cJSON_AddBoolToObject(o, "ok", false);
-        cJSON_AddStringToObject(o, "error", "failed to add card");
-        return sendJson(req, "400 Bad Request", o);
+        return fail(req, "400 Bad Request","failed to add card");;
     }
 }
 
@@ -309,14 +303,10 @@ static esp_err_t deleteCardsHandler(httpd_req_t *req) {
     int idx=atoi(index_str);
     snprintf(path, sizeof(path), "%s/%s.json", DECK_DIR, deck);
 
-    cJSON *o = cJSON_CreateObject();
     if(deleteCardByIndex(path, idx)){
-        cJSON_AddBoolToObject(o, "ok", true);
-        return sendJson(req, "200 OK", o);
+        return success(req, 0);
     }else{
-        cJSON_AddBoolToObject(o, "ok", false);
-        cJSON_AddStringToObject(o, "error", "card or deck not found");
-        return sendJson(req, "404 Not Found", o);
+        return fail(req, "404 Not Found","card or deck not found");;
     }
 }
 
