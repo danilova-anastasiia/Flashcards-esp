@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include "cards.h"
+#include "sd_card_mount.h"
+#include "sd_card_pinout.h"
 
 static cJSON *deck_root = NULL; 
 static cJSON *deck_cards = NULL;
@@ -260,11 +263,10 @@ int addCard(const char* deck_path, const char *term, const char *definition) {
     }
 
     cJSON *arrayCards = cJSON_GetObjectItemCaseSensitive(root, "cards");
-    if(!cJSON_IsArray(arrayCards)) {
+    if (!cJSON_IsArray(arrayCards)) {
         cJSON_Delete(root);
         return 0;
     }
-    int size = cJSON_GetArraySize(arrayCards);
 
     cJSON *newCard = cJSON_CreateObject();
     cJSON_AddStringToObject(newCard, "term", term);
@@ -279,7 +281,7 @@ int addCard(const char* deck_path, const char *term, const char *definition) {
     char *jsonString = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
 
-    if(jsonString == NULL) {
+    if (jsonString == NULL) {
         return 0;
     }
     
@@ -309,7 +311,9 @@ int deckList(const char* dir_path, char deckName[][67], int max) {
     while ((entry = readdir(directory)) != NULL && countDir < max) {
         size_t nameLength = strlen(entry -> d_name);
         if (nameLength > 5 && strcmp(entry -> d_name + nameLength - 5, ".json") == 0) {
-            snprintf(deckName[countDir], 67, "%s", entry -> d_name);
+            size_t copyLen = nameLength < 66 ? nameLength : 66;
+            memcpy(deckName[countDir], entry->d_name, copyLen);
+            deckName[countDir][copyLen] = '\0';
             countDir++;
         }
     }
@@ -318,3 +322,4 @@ int deckList(const char* dir_path, char deckName[][67], int max) {
     return countDir;
 
 }
+
