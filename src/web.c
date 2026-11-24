@@ -233,6 +233,11 @@ static esp_err_t deleteDeckHandler(httpd_req_t *req){
     httpd_req_get_url_query_str(req, query, sizeof(query));
     httpd_query_key_value(query, "name", name, sizeof(name));
 
+    if(httpd_req_get_url_query_str(req, query, sizeof(query))!= ESP_OK ||
+        httpd_query_key_value(query, "name", name, sizeof(name))!=ESP_OK || name[0] == '\0'){
+        return fail(req, "400 Bad Request", "missing deck name");
+    }
+
     snprintf(path, sizeof(path), "%s/%s.json", DECK_DIR, name);
     
     if(deleteDeckFile(path)){
@@ -243,7 +248,7 @@ static esp_err_t deleteDeckHandler(httpd_req_t *req){
 }
 
 static esp_err_t getDeckOpenHandler(httpd_req_t *req){
-    char name[67], path[128], query[96];
+    char name[48], path[128], query[96];
 
     httpd_req_get_url_query_str(req, query, sizeof(query));
     httpd_query_key_value(query, "name", name, sizeof(name));
@@ -251,7 +256,7 @@ static esp_err_t getDeckOpenHandler(httpd_req_t *req){
     snprintf(path, sizeof(path), "%s/%s.json", DECK_DIR, name);
     FILE *f = fopen(path, "rb");
     if(!f){
-        fail(req, "error","deck not found");
+        return fail(req, "404 Not Found","deck not found");
     }
     httpd_resp_set_type(req, "application/json");
     char chunk[512];
@@ -278,6 +283,11 @@ static esp_err_t postCardsHandler(httpd_req_t *req) {
     cJSON *deck= cJSON_GetObjectItemCaseSensitive(in, "deck");
     cJSON *term = cJSON_GetObjectItemCaseSensitive(in, "term");
     cJSON *definition = cJSON_GetObjectItemCaseSensitive(in, "definition");
+
+    if(!cJSON_IsString(deck) || deck->valuestring[0]=='\0' || !cJSON_IsString(term) || !cJSON_IsString(definition)){
+        cJSON_Delete(in);
+        return fail(req, "400 Bad Request", "missing or invalid fields");
+    }
 
     char path[128];
     snprintf(path, sizeof(path), "%s/%s.json", DECK_DIR, deck->valuestring);
