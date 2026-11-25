@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
-#include "cards.h"
-#include "sd_card_mount.h"
-#include "sd_card_pinout.h"
+#include "cards/cards.h"
+#include "cards/sd_card_mount.h"
+#include "cards/sd_card_pinout.h"
 
 static cJSON *deck_root = NULL; 
 static cJSON *deck_cards = NULL;
@@ -322,4 +322,3 @@ int deckList(const char* dir_path, char deckName[][67], int max) {
     return countDir;
 
 }
-
