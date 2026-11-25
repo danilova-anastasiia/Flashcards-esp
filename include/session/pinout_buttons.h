@@ -1,3 +1,4 @@
-#define BTN_LEFT_PIN   GPIO_NUM_4  //!!! замінити на актуальні піни
-#define BTN_MID_PIN    GPIO_NUM_5
-#define BTN_RIGHT_PIN  GPIO_NUM_6
+#define BTN_LEFT_PIN   GPIO_NUM_25
+#define BTN_MID_PIN    GPIO_NUM_26
+#define BTN_RIGHT_PIN  GPIO_NUM_27
+#define BTN_WEB_PIN    GPIO_NUM_33
