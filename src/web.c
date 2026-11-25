@@ -171,7 +171,10 @@ static void netEventHandler(void *arg, esp_event_base_t base, int32_t id, void *
     if(base == IP_EVENT && id == IP_EVENT_STA_GOT_IP){
         on=true;
     }
-    setWebLabel(on);
+    if(lvgl_port_lock(0)){
+        ui_set_web(on);
+        lvgl_port_unlock();
+    }
 }
 
 void toggleWeb(void) {
@@ -374,11 +377,4 @@ void serverInit(void){
     }
 
     printf("Server started\n");
-}
-
-static void setWebLabel(bool on){
-    if(lvgl_port_lock(0)){
-        ui_set_web(on);
-        lvgl_port_unlock();
-    }
 }
