@@ -1,6 +1,6 @@
 #include <stdbool.h>
 #include <stdio.h>
-#include "cards.h"
+#include "cards/cards.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include "session/session.h"
@@ -11,12 +11,21 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "esp_timer.h"
+#include "esp_lvgl_port.h"
+#include "freertos/task.h"
+#include <dirent.h>
+#include <string.h>
+#include "ui/src/ui/ui.h"
 
 enum {
     CARD_UNSEEN  = 0,
     CARD_KNOWN   = 1,
     CARD_UNKNOWN = 2
 };
+
+#define MAX_DECKS 16
+#define DECK_DIR  "/sdcard/decks"
+#define BTN_STABLE_SAMPLES 3
 
 static int currentIndex;
 static int total;
@@ -30,6 +39,16 @@ static int unknownCount;
 #define DEBOUNCE_DELAY_US 50000ULL
 static QueueHandle_t button_queue = NULL;
 static bool s_buttons_inited = false;
+
+static char deckNames[MAX_DECKS][67];
+static int  deckCount = 0;
+
+static uint64_t lastScanUs = 0;
+#define RESCAN_INTERVAL_US 2000000ULL
+
+static const gpio_num_t btnPins[B_COUNT] = { BTN_LEFT_PIN, BTN_MID_PIN, BTN_RIGHT_PIN, BTN_WEB_PIN };
+static uint8_t  btnLow[B_COUNT]    = { 0, 0, 0, 0 }; 
+
 
 typedef enum {
     BTN_ID_LEFT = 0,
@@ -68,32 +87,15 @@ static void IRAM_ATTR button_isr_handler(void *arg) {
 }
 
 void studyButtonsInit(void) {
-    if (s_buttons_inited == true) {
-        return;
-    }
-
-    if (button_queue == NULL) {
-        button_queue = xQueueCreate(16, sizeof(SessionBtnId));
-    }
-
-    gpio_config_t io_conf = {
-        .intr_type = GPIO_INTR_NEGEDGE,
+    gpio_config_t btnCfg = {
+        .pin_bit_mask = (1ULL << BTN_LEFT_PIN) | (1ULL << BTN_MID_PIN) |
+                        (1ULL << BTN_RIGHT_PIN) | (1ULL << BTN_WEB_PIN),
         .mode = GPIO_MODE_INPUT,
-        .pin_bit_mask = (1ULL << BTN_LEFT_PIN) | (1ULL << BTN_MID_PIN) | (1ULL << BTN_RIGHT_PIN),
+        .pull_up_en = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .pull_up_en = GPIO_PULLUP_ENABLE
+        .intr_type = GPIO_INTR_DISABLE,
     };
-    gpio_config(&io_conf);
-
-    esp_err_t err = gpio_install_isr_service(0);
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
-        return;
-    }
-
-    for (int i = 0; i < 3; i++) {
-        gpio_isr_handler_add(s_btn_ctx[i].pin, button_isr_handler, &s_btn_ctx[i]);
-    }
-    s_buttons_inited = true;
+    gpio_config(&btnCfg);
 }
 
 void studyButtonsPoll(void) {
@@ -135,7 +137,7 @@ void studyButtonsClearQueue(void) {
 static void render(void) {
 
     if (total <= 0) {
-        lv_label_set_text(objects.card_label, "Дека порожня");
+        lv_label_set_text(objects.card_label, "deck is empty");
         lv_label_set_text(objects.progress, "0 / 0");
         lv_obj_set_hidden(objects.result_label, true);
         return;
@@ -143,10 +145,10 @@ static void render(void) {
 
     if (studyIsFinished()) {
         char buffer[67];
-        snprintf(buffer, sizeof(buffer), "Знаю: %d / %d", knownCount, total);
+        snprintf(buffer, sizeof(buffer), "Know: %d / %d", knownCount, total);
         lv_label_set_text(objects.result_label, buffer);
         lv_obj_set_hidden(objects.result_label, false);
-        lv_label_set_text(objects.card_label, "Деку пройдено!");
+        lv_label_set_text(objects.card_label, "Deck is finished");
         return;
     }
 
@@ -252,6 +254,115 @@ void studyAnswer(bool known) {
     showDef = false;
     render();
 
+}
+
+uint8_t scanButtons(void) {
+    uint8_t pressed = 0;
+
+    for (int i = 0; i < B_COUNT; i++) {
+        if (gpio_get_level(btnPins[i]) == 0) {
+            if (btnLow[i] < BTN_STABLE_SAMPLES) {
+                btnLow[i]++;
+                if (btnLow[i] == BTN_STABLE_SAMPLES) {
+                    pressed |= (1u << i);
+                }
+            }
+        } else {
+            btnLow[i] = 0;
+        }
+    }
+    return pressed;
+}
+
+static int scanDecks(char names[][67]) {
+    for (int attempt = 0; attempt < 3; attempt++) {
+        DIR *d = opendir(DECK_DIR);
+        if (d != NULL) {
+            closedir(d);
+            return deckList(DECK_DIR, names, MAX_DECKS);
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+    return -1;
+}
+
+void refreshDecks(bool force) {
+    static char newNames[MAX_DECKS][67];
+    static bool lastScanFailed = false;
+
+    lastScanUs = esp_timer_get_time();
+    int n = scanDecks(newNames);
+    if (n < 0) {
+        if (!lastScanFailed) {
+            printf("SD read failed");
+        }
+        lastScanFailed = true;
+        return;
+    }
+    lastScanFailed = false;
+
+    bool same = !force && n == deckCount;
+    for (int i = 0; same && i < n; i++) {
+        if (strcmp(newNames[i], deckNames[i]) != 0) {
+            same = false;
+        }
+    }
+    if (same) {
+        return;
+    }
+
+    if (lvgl_port_lock(0)) {
+        int sel = ui_decks_selected();
+        memcpy(deckNames, newNames, sizeof(deckNames));
+        deckCount = n;
+        ui_decks_set(deckNames, deckCount);
+        if (sel > 0 && n > 0) {
+            ui_decks_move(sel);
+        }
+        lvgl_port_unlock();
+    }
+    printf("found %d decks", n);
+}
+
+void refreshDecksIfDue(void) {
+    if ((uint64_t)esp_timer_get_time() - lastScanUs > RESCAN_INTERVAL_US) {
+        refreshDecks(false);
+    }
+}
+
+int decksCount(void) {
+    return deckCount;
+}
+
+void showDecks(void) {
+    if (lvgl_port_lock(0)) {
+        loadScreen(SCREEN_ID_DECKS);
+        lvgl_port_unlock();
+    }
+    refreshDecks(true);
+}
+
+statuses startStudy(void) {
+    if (deckCount <= 0) {
+        return STATE_DECKS;
+    }
+
+    char path[128] = "";
+    int ok = 0;
+
+    if (lvgl_port_lock(0)) {
+        int sel = ui_decks_selected();
+        snprintf(path, sizeof(path), "%s/%s", DECK_DIR, deckNames[sel]);
+        loadScreen(SCREEN_ID_MAIN);
+        ok = studyStart(path);
+        lvgl_port_unlock();
+    }
+    if (ok) {
+        return STATE_STUDY;
+    }
+    else{
+        return STATE_DONE;
+    }
 }
 
 
