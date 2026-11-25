@@ -8,4 +8,6 @@ void connectWifi();
 
 void serverInit();
 
+void toggleWeb(void);
+
 #endif

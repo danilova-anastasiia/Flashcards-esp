@@ -12,6 +12,9 @@
 #include "esp_check.h"
 #include "esp_http_server.h"
 #include "cJSON.h"
+#include "esp_event.h"
+#include "esp_lvgl_port.h"
+#include "ui/src/ui/ui.h"
 
 #include "web/credentials.h"
 #include "web/web.h"
@@ -20,6 +23,9 @@
 #define WIFI_MAX_RETRY 10
 #define MAX_BODY  8192
 #define MAX_TEXT  200
+
+static bool webStarted = false;
+static bool webOn = false;
 
 extern const char index_html_start[] asm("_binary_index_html_start");
 extern const char index_html_end[]   asm("_binary_index_html_end");
@@ -118,6 +124,8 @@ static void wifiEventHandler(void *event_handler_arg, esp_event_base_t event_bas
                 printf("Retrying WiFi (%d/%d)...\n", wifi_retry_count, WIFI_MAX_RETRY);
                 esp_wifi_connect();
             } else {
+                webOn = false;
+                webStarted = false;
                 printf("WiFi retry limit reached\n");
             }
             break;
@@ -158,6 +166,41 @@ void connectWifi(){
 	esp_wifi_connect();
 }
 
+static void netEventHandler(void *arg, esp_event_base_t base, int32_t id, void *data) {
+    bool on = false;
+    if(base == IP_EVENT && id == IP_EVENT_STA_GOT_IP){
+        on=true;
+    }
+    setWebLabel(on);
+}
+
+void toggleWeb(void) {
+    if(!webStarted){
+        connectWifi();
+        esp_event_handler_register(IP_EVENT,IP_EVENT_STA_GOT_IP, netEventHandler, NULL);
+        esp_event_handler_register(IP_EVENT,IP_EVENT_STA_LOST_IP,netEventHandler, NULL);
+        esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED,netEventHandler, NULL);
+        webStarted = true;
+        webOn=true;
+        printf("web: connecting");
+        return;
+    }
+
+    if(webOn){
+        esp_wifi_stop();
+        webOn = false;
+        if(lvgl_port_lock(0)){
+            ui_set_web(false);
+            lvgl_port_unlock();
+        }
+        printf("web: off");
+
+    }else{
+        esp_wifi_start();
+        webOn = true;
+        printf("web: connecting");
+    }
+}
 
 static esp_err_t getIndexHandler(httpd_req_t *req){
     httpd_resp_set_type(req, "text/html");
@@ -188,7 +231,7 @@ static esp_err_t getListDecksHandler(httpd_req_t *req){
     return sendJson(req, "200 OK", arr);
 }
 
-static esp_err_t postDeckHandler(httpd_req_t *req) {
+static esp_err_t postDeckHandler(httpd_req_t *req){
     char *body = readBody(req);
     cJSON *in = cJSON_Parse(body);
     free(body);
@@ -269,7 +312,7 @@ static esp_err_t getDeckOpenHandler(httpd_req_t *req){
     return httpd_resp_send_chunk(req, NULL, 0);
 }
 
-static esp_err_t postCardsHandler(httpd_req_t *req) {
+static esp_err_t postCardsHandler(httpd_req_t *req){
     char *body = readBody(req);
 
     cJSON *in = cJSON_Parse(body);
@@ -301,7 +344,7 @@ static esp_err_t postCardsHandler(httpd_req_t *req) {
     }
 }
 
-static esp_err_t deleteCardsHandler(httpd_req_t *req) {
+static esp_err_t deleteCardsHandler(httpd_req_t *req){
     char deck[67], index_str[16], query[128], path[128];
 
     httpd_req_get_url_query_str(req, query, sizeof(query));
