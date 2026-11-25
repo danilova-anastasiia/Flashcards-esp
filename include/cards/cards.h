@@ -1,8 +1,6 @@
 #ifndef CARDS_H
 #define CARDS_H
-#include "cJSON.h"
 
-static cJSON *loadJson(const char *deck_path);
 int deleteCardByIndex(const char *deck_path, int index);
 int getCardCount(const char *deck_path);
 int createDeck(const char *deck_path, const char *deck_title);
