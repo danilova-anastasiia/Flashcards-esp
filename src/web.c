@@ -18,10 +18,8 @@
 #include "cards/cards.h"
 
 #define WIFI_MAX_RETRY 10
-#define MAX_DECKS 16
 #define MAX_BODY  8192
 #define MAX_TEXT  200
-#define DECK_DIR  "/sdcard/decks"
 
 extern const char index_html_start[] asm("_binary_index_html_start");
 extern const char index_html_end[]   asm("_binary_index_html_end");
@@ -333,4 +331,11 @@ void serverInit(void){
     }
 
     printf("Server started\n");
+}
+
+static void setWebLabel(bool on){
+    if(lvgl_port_lock(0)){
+        ui_set_web(on);
+        lvgl_port_unlock();
+    }
 }
