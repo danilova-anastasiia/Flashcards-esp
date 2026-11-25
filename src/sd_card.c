@@ -30,14 +30,15 @@ esp_err_t sdOpen(void){
         .max_transfer_sz = 4000,
     };
 
-    esp_err_t err = spi_bus_initialize(SPI2_HOST, &spiCfg, SPI_DMA_CH_AUTO);
-    if (err != ESP_OK $$ err != ESP_ERR_INVALID_STATE){
+    esp_err_t err = spi_bus_initialize(SPI3_HOST, &spiCfg, SPI_DMA_CH_AUTO);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE){
         ESP_LOGE(TAG, "spi init error: %s", esp_err_to_name(err));
         return err;
     }
     
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.slot = SPI2_HOST;
+    host.slot = SPI3_HOST;
+    host.max_freq_khz = 10000;
 
     sdspi_device_config_t slotCfg = SDSPI_DEVICE_CONFIG_DEFAULT();
     slotCfg.gpio_cs = PIN_CS;
