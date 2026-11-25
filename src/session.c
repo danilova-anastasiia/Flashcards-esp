@@ -8,6 +8,9 @@
 #include "lvgl.h"
 #include "screens.h"
 #include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "esp_timer.h"
 
 enum {
     CARD_UNSEEN  = 0,
@@ -22,10 +25,109 @@ static bool busy;
 static uint8_t *status;
 static int knownCount;
 static int unknownCount;
+
 //for buttons
-static bool previousLeft = false;
-static bool previousMid = false;
-static bool previousRight = false;
+#define DEBOUNCE_DELAY_US 50000ULL
+static QueueHandle_t button_queue = NULL;
+static bool s_buttons_inited = false;
+
+typedef enum {
+    BTN_ID_LEFT = 0,
+    BTN_ID_MID,
+    BTN_ID_RIGHT
+} SessionBtnId;
+
+typedef struct {
+    gpio_num_t pin;
+    SessionBtnId id;
+    uint64_t last_isr_us;
+} IsrButtonCtx;
+
+static IsrButtonCtx s_btn_ctx[3] = {
+{ .pin = BTN_LEFT_PIN, .id = BTN_ID_LEFT, .last_isr_us = 0 },
+{ .pin = BTN_MID_PIN, .id = BTN_ID_MID, .last_isr_us = 0 },
+{ .pin = BTN_RIGHT_PIN, .id = BTN_ID_RIGHT, .last_isr_us = 0 }
+};
+
+static void IRAM_ATTR button_isr_handler(void *arg) {
+    IsrButtonCtx *ctx = (IsrButtonCtx *)arg;
+    uint64_t now = esp_timer_get_time();
+
+    if ((now - ctx->last_isr_us) > DEBOUNCE_DELAY_US) {
+        ctx->last_isr_us = now;
+        SessionBtnId id = ctx->id;
+        BaseType_t higher_priority_task_woken = pdFALSE;
+
+        if (button_queue != NULL) {
+            xQueueSendFromISR(button_queue, &id, &higher_priority_task_woken);
+            if (higher_priority_task_woken == pdTRUE) {
+                portYIELD_FROM_ISR();
+            }
+        }
+    }
+}
+
+void studyButtonsInit(void) {
+    if (s_buttons_inited == true) {
+        return;
+    }
+
+    if (button_queue == NULL) {
+        button_queue = xQueueCreate(16, sizeof(SessionBtnId));
+    }
+
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_INTR_NEGEDGE,
+        .mode = GPIO_MODE_INPUT,
+        .pin_bit_mask = (1ULL << BTN_LEFT_PIN) | (1ULL << BTN_MID_PIN) | (1ULL << BTN_RIGHT_PIN),
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .pull_up_en = GPIO_PULLUP_ENABLE
+    };
+    gpio_config(&io_conf);
+
+    esp_err_t err = gpio_install_isr_service(0);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        return;
+    }
+
+    for (int i = 0; i < 3; i++) {
+        gpio_isr_handler_add(s_btn_ctx[i].pin, button_isr_handler, &s_btn_ctx[i]);
+    }
+    s_buttons_inited = true;
+}
+
+void studyButtonsPoll(void) {
+    if (button_queue == NULL) {
+        return;
+    }
+
+    SessionBtnId pressed_id;
+    while (xQueueReceive(button_queue, &pressed_id, 0) == pdTRUE) {
+        if (total <= 0 || busy || studyIsFinished()) {
+            continue;
+        }
+
+        switch (pressed_id) {
+            case BTN_ID_MID:
+                flip();
+                break;
+            case BTN_ID_RIGHT:
+                studyAnswer(true);
+                break;
+            case BTN_ID_LEFT:
+                studyAnswer(false);
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+void studyButtonsClearQueue(void) {
+    if (button_queue != NULL) {
+    xQueueReset(button_queue);
+}
+}
 
 
 
@@ -67,6 +169,7 @@ void studyStop(void) {
     }
 
     deckClose();
+    studyButtonsClearQueue();
     currentIndex = 0;
     total = 0;
     busy = false;
@@ -97,6 +200,7 @@ int studyStart(const char *deck_path) {
     showDef = false; 
     knownCount = 0;
     unknownCount = 0;
+    studyButtonsClearQueue();
     render();
     return 1;
 
@@ -150,29 +254,4 @@ void studyAnswer(bool known) {
 
 }
 
-void studyButtonsPoll(void) {
-    bool currLeft = (gpio_get_level(BTN_LEFT_PIN) == 0);
-    bool currMid = (gpio_get_level(BTN_MID_PIN) == 0);
-    bool currRight = (gpio_get_level(BTN_RIGHT_PIN) == 0);
-    bool leftPressed = (currLeft && !previousLeft);
-    bool rightPressed = (currRight && !previousRight);
-    bool midPressed = (currMid && !previousMid);
-
-    previousLeft = currLeft;
-    previousMid = currMid;
-    previousRight = currRight;
-
-    if (total <= 0 || busy || studyIsFinished()) return;
-
-    if (midPressed == true) {
-        flip();
-    }
-    else if (rightPressed) {
-        studyAnswer(true);
-    }
-    else if (leftPressed) {
-        studyAnswer(false);
-    }
-
-}
 
