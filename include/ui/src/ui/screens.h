@@ -32,6 +32,7 @@ typedef struct _objects_t {
     lv_obj_t *obj5;
     lv_obj_t *obj6;
     lv_obj_t *obj7;
+    lv_obj_t *ip_label;
 } objects_t;
 
 extern objects_t objects;
@@ -56,6 +57,8 @@ int  ui_decks_selected(void);
 void ui_decks_move(int dir);
 
 void ui_set_web(bool on);
+
+void ui_set_ip(const char *ip);
 
 #ifdef __cplusplus
 }

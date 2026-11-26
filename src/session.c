@@ -138,17 +138,17 @@ static void render(void) {
 
     if (total <= 0) {
         lv_label_set_text(objects.card_label, "deck is empty");
-        lv_label_set_text(objects.progress, "0 / 0");
         lv_obj_set_hidden(objects.result_label, true);
+        lv_label_set_text(objects.progress, "0 / 0");
         return;
     }
 
     if (studyIsFinished()) {
         char buffer[67];
         snprintf(buffer, sizeof(buffer), "Know: %d / %d", knownCount, total);
+        lv_label_set_text(objects.card_label, "Deck is finished");
         lv_label_set_text(objects.result_label, buffer);
         lv_obj_set_hidden(objects.result_label, false);
-        lv_label_set_text(objects.card_label, "Deck is finished");
         return;
     }
 
@@ -235,6 +235,41 @@ int studyTotal(void) {
     return total;
 }
 
+static void flashEnd(lv_timer_t *t) {
+    if(objects.obj0 != NULL){
+        lv_obj_set_style_bg_color(objects.obj0, lv_color_hex(CARD_BG_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
+    }
+    if(objects.card_label != NULL){
+        lv_obj_set_style_text_color(objects.card_label, lv_color_hex(CARD_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
+    }
+    if(objects.result_label!= NULL){
+        lv_obj_set_style_text_color(objects.result_label, lv_color_hex(CARD_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
+    }
+    flashTimer = NULL;
+
+    if(studyIsFinished()){
+        render();
+    }
+}
+
+static void flashScreen(bool known) {
+    if(flashTimer!= NULL){
+        lv_timer_delete(flashTimer);
+        flashTimer = NULL;
+    }
+    if(objects.obj0 != NULL){
+        lv_obj_set_style_bg_color(objects.obj0, lv_color_hex(known ? KNOWN_COLOR : UNKNOWN_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
+    }
+    if(objects.card_label != NULL){
+        lv_obj_set_style_text_color(objects.card_label, lv_color_hex(known ? KNOWN_COLOR : UNKNOWN_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
+    }
+    if(objects.result_label != NULL){
+        lv_obj_set_style_text_color(objects.result_label, lv_color_hex(known ? KNOWN_COLOR : UNKNOWN_COLOR), LV_PART_MAIN | LV_STATE_DEFAULT);
+    }
+    flashTimer = lv_timer_create(flashEnd, FLASH_MS, NULL);
+    lv_timer_set_repeat_count(flashTimer, 1);
+}
+
 void studyAnswer(bool known) {
     if (total <= 0 || busy || studyIsFinished()) {
         return;
@@ -249,10 +284,14 @@ void studyAnswer(bool known) {
         status[currentIndex] = CARD_UNKNOWN;
         unknownCount++;
     }
-
+    
     currentIndex++;
     showDef = false;
-    render();
+
+    if (!studyIsFinished()) {
+        render();
+    }
+    flashScreen(known);
 
 }
 

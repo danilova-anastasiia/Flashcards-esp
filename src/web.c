@@ -166,17 +166,23 @@ void connectWifi(){
 	esp_wifi_connect();
 }
 
-static void netEventHandler(void *arg, esp_event_base_t base, int32_t id, void *data) {
+static void netEventHandler(void *arg, esp_event_base_t base, int32_t id, void *data){
     bool on = false;
     if(base == IP_EVENT && id == IP_EVENT_STA_GOT_IP){
         on=true;
     }
+    char ip[16]="";
+    if(on){
+        ip_event_got_ip_t *e=(ip_event_got_ip_t *)data;
+        snprintf(ip, sizeof(ip), IPSTR, IP2STR(&e->ip_info.ip));
+    }
+
     if(lvgl_port_lock(0)){
         ui_set_web(on);
+        ui_set_ip(ip);
         lvgl_port_unlock();
     }
 }
-
 void toggleWeb(void) {
     if(!webStarted){
         connectWifi();
@@ -190,6 +196,11 @@ void toggleWeb(void) {
     }
 
     if(webOn){
+        if(lvgl_port_lock(0)){
+            ui_set_web(false);
+            ui_set_ip("");
+            lvgl_port_unlock();
+        }
         esp_wifi_stop();
         webOn = false;
         if(lvgl_port_lock(0)){
